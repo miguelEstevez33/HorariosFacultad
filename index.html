@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Selector de Materias y Horarios — ISI Plan 2023 (UTN FRC)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <div class="brand-badge">ISI 2023</div>
+        <div>
+          <h1>Selector de Materias, Correlativas y Horarios</h1>
+          <p class="subtitle">Ingeniería en Sistemas de Información — Plan 2023 (UTN FRC)</p>
+        </div>
+      </div>
+
+      <div class="stats-bar" id="stats-bar">
+        <div class="stat-pill stat-aprobada">
+          <span class="stat-label">Aprobadas</span>
+          <span class="stat-value" id="stat-aprobadas">0</span>
+        </div>
+        <div class="stat-pill stat-regular">
+          <span class="stat-label">Regulares</span>
+          <span class="stat-value" id="stat-regulares">0</span>
+        </div>
+        <div class="stat-pill stat-cursando">
+          <span class="stat-label">Inscriptas</span>
+          <span class="stat-value" id="stat-cursando">0</span>
+        </div>
+        <div class="stat-pill stat-creditos" title="Créditos de electivas aprobadas (20 req. para Ingeniería, 4 de 3° nivel para Analista)">
+          <span class="stat-label">Créditos Electivas</span>
+          <span class="stat-value" id="stat-creditos">0 / 20</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BARRA DE PROGRESO DE LA CARRERA -->
+    <div class="container career-progress-wrapper">
+      <div class="career-progress-grid">
+        <!-- Progreso Ingeniería en Sistemas (36 obligatorias + 20 créditos electivas) -->
+        <div class="progress-card">
+          <div class="progress-card-top">
+            <div class="progress-title-group">
+              <span class="progress-degree-title">Ingeniería en Sistemas de Información</span>
+              <span class="progress-detail-text" id="prog-ing-detail">0/36 obligatorias • 0/20 créditos electivas</span>
+            </div>
+            <span class="progress-pct-badge" id="prog-ing-pct">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill progress-fill-ing" id="prog-ing-bar" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- Progreso Título Intermedio: Analista Universitario de Sistemas (1..23 + Seminario 99 + 4 créditos 3° nivel) -->
+        <div class="progress-card progress-card-analista">
+          <div class="progress-card-top">
+            <div class="progress-title-group">
+              <span class="progress-degree-title">Título Intermedio: Analista Universitario</span>
+              <span class="progress-detail-text" id="prog-ana-detail">0/24 obligatorias (1° a 3° + Sem.) • 0/4 cr. 3° nivel</span>
+            </div>
+            <span class="progress-pct-badge pct-analista" id="prog-ana-pct">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill progress-fill-ana" id="prog-ana-bar" style="width: 0%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="tabs-bar">
+    <div class="container tabs-container">
+      <button class="tab-btn active" data-tab="alumno" id="tab-btn-alumno">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span>Pestaña Alumno (Correlativas y Estado)</span>
+      </button>
+      <button class="tab-btn" data-tab="cursado" id="tab-btn-cursado">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        <span>Pestaña Cursado (Selector de Cursos y Grilla Horaria)</span>
+        <span class="badge-count" id="badge-habilitadas">0</span>
+      </button>
+    </div>
+  </div>
+
+  <main class="container main-content">
+    <!-- PESTAÑA 1: ALUMNO -->
+    <section id="tab-alumno" class="tab-panel active">
+      <div class="panel-toolbar">
+        <div class="toolbar-left">
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="search-alumno" placeholder="Buscar materia por nombre o N°..." />
+          </div>
+
+          <div class="filter-group">
+            <select id="filter-nivel-alumno" class="select-control">
+              <option value="all">Todos los niveles</option>
+              <option value="1">1° Año</option>
+              <option value="2">2° Año</option>
+              <option value="3">3° Año</option>
+              <option value="4">4° Año</option>
+              <option value="5">5° Año</option>
+              <option value="electivas">Solo Electivas</option>
+            </select>
+
+            <select id="filter-estado-alumno" class="select-control">
+              <option value="all">Todos los estados</option>
+              <option value="none">Sin cursar</option>
+              <option value="regular">Regular</option>
+              <option value="aprobado">Aprobado</option>
+              <option value="cursando">Cursando</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="toolbar-right">
+          <div class="quick-actions">
+            <span class="quick-label">Acciones rápidas por año:</span>
+            <select id="quick-year-select" class="select-control select-sm">
+              <option value="">Marcar nivel completo...</option>
+              <option value="1:aprobado">1° Año → Todo Aprobado</option>
+              <option value="1:regular">1° Año → Todo Regular</option>
+              <option value="2:aprobado">2° Año → Todo Aprobado</option>
+              <option value="2:regular">2° Año → Todo Regular</option>
+              <option value="3:aprobado">3° Año → Todo Aprobado</option>
+              <option value="3:regular">3° Año → Todo Regular</option>
+              <option value="4:aprobado">4° Año → Todo Aprobado</option>
+              <option value="4:regular">4° Año → Todo Regular</option>
+            </select>
+            <button id="btn-reset-all" class="btn btn-outline-danger btn-sm" title="Reiniciar todos los estados">
+              Reiniciar todo
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-banner">
+        <div>
+          <strong>Paso 1:</strong> Marcá qué materias tenés <strong>Regulares</strong> o <strong>Aprobadas</strong>. En base a eso se destrabarán automáticamente las materias y sus comisiones en la pestaña <strong>Cursado</strong>.
+        </div>
+        <button class="btn btn-primary btn-sm" id="btn-go-cursado">
+          Ir a elegir cursos y armar horario →
+        </button>
+      </div>
+
+      <div id="alumno-levels-container" class="levels-container"></div>
+    </section>
+
+    <!-- PESTAÑA 2: CURSADO Y GRILLA SEMANAL -->
+    <section id="tab-cursado" class="tab-panel">
+      <div class="cursado-workspace">
+        <!-- COLUMNA IZQUIERDA: SELECTOR DE MATERIA + COMISIÓN (1K1, 2K6, 3K3, etc.) -->
+        <aside class="courses-picker-panel">
+          <div class="picker-header">
+            <h2>Materias Disponibles</h2>
+            <p>Elegí la comisión (curso) para cada materia habilitada</p>
+          </div>
+
+          <div class="picker-filters">
+            <div class="search-box" style="min-width: 100%;">
+              <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" id="search-cursado" placeholder="Filtrar materia habilitada..." />
+            </div>
+
+            <div class="picker-filter-row">
+              <select id="filter-nivel-cursado" class="select-control select-sm" style="flex: 1;">
+                <option value="all">Todos los años</option>
+                <option value="1">1° Año</option>
+                <option value="2">2° Año</option>
+                <option value="3">3° Año</option>
+                <option value="4">4° Año</option>
+                <option value="5">5° Año</option>
+                <option value="electivas">Electivas</option>
+              </select>
+
+              <label class="toggle-check" style="font-size: 0.78rem;">
+                <input type="checkbox" id="toggle-show-locked" />
+                <span>Ver bloqueadas</span>
+              </label>
+            </div>
+          </div>
+
+          <div id="cursado-picker-list" class="picker-list"></div>
+        </aside>
+
+        <!-- COLUMNA DERECHA: GRILLA DE HORARIOS FORMATO IMAGEN UTN -->
+        <div class="schedule-main-area">
+          <div class="schedule-toolbar">
+            <div class="schedule-toolbar-left">
+              <span class="toolbar-title">Vista de Horario Semanal:</span>
+              <div class="cuat-segmented" id="cuat-filter-group">
+                <button type="button" class="cuat-btn active" data-cuat="all">Anual Completo</button>
+                <button type="button" class="cuat-btn" data-cuat="1C">1° Cuatrimestre</button>
+                <button type="button" class="cuat-btn" data-cuat="2C">2° Cuatrimestre</button>
+              </div>
+            </div>
+
+            <div class="schedule-toolbar-right">
+              <span class="enrolled-summary" id="enrolled-summary-pill">0 materias inscriptas (0 hs/sem)</span>
+              <button type="button" id="btn-clear-plan" class="btn btn-outline-danger btn-sm" disabled>
+                Vaciar horario
+              </button>
+            </div>
+          </div>
+
+          <!-- ALERTA DE SUPERPOSICIÓN DE HORARIOS -->
+          <div id="conflict-alert-banner" class="conflict-banner" style="display: none;"></div>
+
+          <!-- TABLA ESTILO AUTOGESTIÓN UTN (COMO EN LA IMAGEN) -->
+          <div class="utn-calendar-wrapper">
+            <div class="utn-calendar" id="utn-calendar">
+              <div class="utn-cal-header">
+                <div class="utn-day-col-header">Lunes</div>
+                <div class="utn-day-col-header">Martes</div>
+                <div class="utn-day-col-header">Miercoles</div>
+                <div class="utn-day-col-header">Jueves</div>
+                <div class="utn-day-col-header">Viernes</div>
+                <div class="utn-day-col-header">Sabado</div>
+              </div>
+
+              <div class="utn-cal-body" id="utn-cal-body">
+                <!-- Se genera dinámicamente con las franjas y tarjetas blancas con borde superior azul -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="schedules.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
