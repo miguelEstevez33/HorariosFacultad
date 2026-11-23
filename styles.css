@@ -734,11 +734,15 @@ body {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 0.7rem 0.8rem;
+  padding: 0.65rem 0.85rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  transition: border-color 0.15s ease;
+  gap: 0.55rem;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.picker-item:hover:not(.locked) {
+  border-color: #475569;
 }
 
 .picker-item.enrolled {
@@ -746,65 +750,237 @@ body {
   background: rgba(43, 123, 185, 0.12);
 }
 
+.picker-item.previewing {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.14);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
 .picker-item.locked {
   opacity: 0.55;
 }
 
-.picker-item-header {
+.picker-radio-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.picker-item.locked .picker-radio-row {
+  cursor: default;
+}
+
+.picker-subject-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.picker-title-line {
+  display: flex;
+  align-items: center;
   gap: 0.45rem;
+  flex-wrap: wrap;
 }
 
 .picker-item-title {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text);
 }
 
-.picker-item-badges {
+.planted-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #0284c7;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+}
+
+.picker-submeta {
   display: flex;
-  gap: 0.25rem;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.73rem;
+  color: var(--text-muted);
+}
+
+.planted-schedule-text {
+  color: #7dd3fc;
+  font-weight: 500;
+}
+
+/* Botón circular de selección de materia (formato boceto: "Algebra  (•)") */
+.picker-radio-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #94a3b8;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.picker-radio-row:hover .picker-radio-btn {
+  border-color: #38bdf8;
+}
+
+.picker-radio-btn.has-planted {
+  border-color: #38bdf8;
+}
+
+.picker-radio-btn.active {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.18);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.45);
+}
+
+.picker-radio-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: transparent;
+  transition: all 0.15s ease;
+  transform: scale(0.4);
+}
+
+.picker-radio-btn.has-planted .picker-radio-dot {
+  background: #2b7bb9;
+  transform: scale(0.75);
+}
+
+.picker-radio-btn.active .picker-radio-dot {
+  background: #38bdf8;
+  transform: scale(1);
+}
+
+.picker-radio-circle.disabled {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px dashed #475569;
   flex-shrink: 0;
 }
 
-.picker-course-select {
-  width: 100%;
-  padding: 0.45rem 0.6rem;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  color: var(--text);
-  font-size: 0.8rem;
-  font-family: inherit;
-  cursor: pointer;
+/* Panel desplegable con chips de comisiones (1K1, 1K2, 1K3...) */
+.picker-preview-panel {
+  margin-top: 0.3rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
 }
 
-.picker-course-select optgroup {
-  background: var(--bg-elevated);
-  color: #93c5fd;
-  font-weight: 700;
-  font-style: normal;
-}
-
-.picker-course-select option {
-  background: var(--bg-card);
-  color: var(--text);
-  font-weight: 400;
-}
-
-.picker-course-select.has-value {
-  border-color: #38bdf8;
-  background: rgba(56, 189, 248, 0.12);
+.picker-preview-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  font-size: 0.72rem;
   color: #bae6fd;
-  font-weight: 600;
 }
 
-.picker-schedule-preview {
-  font-size: 0.73rem;
+.btn-unplant-inline {
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+  font-size: 0.69rem;
+  font-weight: 600;
+  padding: 0.14rem 0.45rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-unplant-inline:hover {
+  background: rgba(239, 68, 68, 0.28);
+}
+
+.comisiones-chips-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.32rem;
+}
+
+.comision-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  padding: 0.22rem 0.48rem;
+  border-radius: 5px;
+  border: 1px solid #334155;
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.12s ease;
+}
+
+.comision-chip:hover {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+
+.comision-chip .chip-period {
+  font-size: 0.64rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.comision-chip.chip-selected {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.comision-chip.chip-selected .chip-period {
+  color: #e0f2fe;
+}
+
+.comision-chip.chip-conflict {
+  border-color: rgba(239, 68, 68, 0.65);
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+}
+
+.comision-chip.chip-conflict .chip-period {
+  color: #fecaca;
+}
+
+.btn-toggle-extra-com {
+  align-self: flex-start;
+  background: transparent;
+  border: none;
   color: #93c5fd;
-  line-height: 1.35;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.1rem 0;
+  font-family: inherit;
+  text-decoration: underline;
+}
+
+.btn-toggle-extra-com:hover {
+  color: #bae6fd;
 }
 
 .picker-locked-reason {
@@ -886,6 +1062,12 @@ body {
   font-size: 0.83rem;
 }
 
+.conflict-banner.preview-active-banner {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #e0f2fe;
+}
+
 /* =========================================================
    TABLA DE HORARIOS IDÉNTICA A LA IMAGEN SUBIDA POR EL USUARIO
    ========================================================= */
@@ -905,10 +1087,10 @@ body {
   user-select: none;
 }
 
-/* Encabezado azul: Lunes | Martes | Miercoles | Jueves | Viernes | Sabado */
+/* Encabezado azul: Hora | Lunes | Martes | Miercoles | Jueves | Viernes | Sabado */
 .utn-cal-header {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: 68px repeat(6, 1fr);
   background-color: #2b7bb9;
   color: #ffffff;
   height: 44px;
@@ -919,16 +1101,22 @@ body {
   letter-spacing: 0.01em;
 }
 
+.utn-time-col-header {
+  padding: 0.5rem 0.25rem;
+  font-size: 0.88rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.22);
+}
+
 .utn-day-col-header {
   padding: 0.5rem;
 }
 
-/* Cuerpo con franjas horizontales blancas y gris-azulado claro (#eaeff5) */
+/* Cuerpo con columna de horas a la izquierda + 6 columnas de días y franjas por hora */
 .utn-cal-body {
   position: relative;
-  min-height: 680px;
+  min-height: 760px;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: 68px repeat(6, 1fr);
 }
 
 .utn-stripes-layer {
@@ -944,6 +1132,7 @@ body {
   flex: 1;
   width: 100%;
   position: relative;
+  border-bottom: 1px solid rgba(203, 213, 225, 0.35);
 }
 
 .utn-stripe-band:nth-child(even) {
@@ -954,10 +1143,31 @@ body {
   background-color: #ffffff;
 }
 
+.utn-time-column {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-height: 760px;
+  border-right: 1px solid #cbd5e1;
+  background: rgba(248, 250, 252, 0.65);
+}
+
+.utn-time-slot {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #475569;
+}
+
 .utn-day-column {
   position: relative;
   z-index: 2;
-  min-height: 680px;
+  min-height: 760px;
   border-right: 1px solid rgba(203, 213, 225, 0.35);
 }
 
@@ -975,61 +1185,143 @@ body {
   border: 1px solid #dce3ec;
   border-top: 4px solid #0073b7;
   box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
-  padding: 4px 8px 6px 8px;
+  padding: 3px 6px 4px 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   overflow: hidden;
-  transition: box-shadow 0.15s ease, transform 0.12s ease;
+  transition: box-shadow 0.15s ease, transform 0.12s ease, opacity 0.15s ease, border-color 0.15s ease, background 0.15s ease;
   cursor: pointer;
+  z-index: 4;
 }
 
-.utn-class-card:hover {
-  box-shadow: 0 6px 15px rgba(0, 115, 183, 0.22);
-  z-index: 15;
+.utn-class-card:hover,
+.utn-class-card.is-hovered-option {
+  box-shadow: 0 8px 20px rgba(0, 115, 183, 0.35);
+  transform: scale(1.03);
+  z-index: 30 !important;
 }
 
+/* Tarjetas de vista previa ("dónde se va a plantar" cuando se selecciona la materia) */
+.utn-class-card.is-preview-card {
+  border: 2px dashed #0284c7;
+  border-top: 4px solid #0284c7;
+  background: rgba(240, 249, 255, 0.94);
+  z-index: 6;
+}
+
+.utn-class-card.is-preview-card:hover,
+.utn-class-card.is-preview-card.is-hovered-option {
+  background: #e0f2fe;
+  border-style: solid;
+  border-color: #0284c7;
+}
+
+.utn-class-card.is-dimmed-preview {
+  opacity: 0.38;
+}
+
+/* En ROJO cuando hay otra materia en ese horario y día */
 .utn-class-card.has-conflict {
-  border-top-color: #dc2626;
-  border-color: #fca5a5;
-  background: #fff5f5;
+  border: 2px solid #dc2626 !important;
+  border-top: 5px solid #b91c1c !important;
+  background: #fee2e2 !important;
+  box-shadow: 0 3px 10px rgba(220, 38, 38, 0.25);
+  z-index: 12;
+}
+
+.utn-class-card.has-conflict .utn-card-time,
+.utn-class-card.has-conflict .utn-card-subject,
+.utn-class-card.has-conflict .utn-card-status,
+.utn-class-card.has-conflict .utn-card-comision {
+  color: #991b1b !important;
 }
 
 .utn-card-time {
   align-self: flex-start;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: #333333;
-  line-height: 1.15;
-  margin-bottom: 2px;
+  line-height: 1.1;
+  flex-shrink: 0;
 }
 
 .utn-card-subject {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 500;
   color: #4b5563;
   text-align: center;
-  line-height: 1.18;
+  line-height: 1.12;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  width: 100%;
 }
 
 .utn-card-status {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 500;
   color: #2b7bb9;
   text-align: center;
-  line-height: 1.15;
-  margin-top: 1px;
+  line-height: 1.1;
+  flex-shrink: 0;
 }
 
 .utn-card-comision {
-  font-size: 1.35rem;
-  font-weight: 600;
-  color: #374151;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
   text-align: center;
-  line-height: 1.1;
-  margin-top: 3px;
+  line-height: 1.05;
+  margin-top: auto;
   letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+/* Cuando hay 2 comisiones lado a lado en el mismo día y horario */
+.utn-class-card.is-two-lanes {
+  padding: 3px 4px;
+}
+
+.utn-class-card.is-two-lanes .utn-card-time {
+  font-size: 0.64rem;
+}
+
+.utn-class-card.is-two-lanes .utn-card-subject {
+  font-size: 0.68rem;
+  -webkit-line-clamp: 2;
+}
+
+.utn-class-card.is-two-lanes .utn-card-status {
+  font-size: 0.64rem;
+}
+
+.utn-class-card.is-two-lanes .utn-card-comision {
+  font-size: 1.12rem;
+}
+
+/* Cuando hay 3 o más comisiones lado a lado en el mismo día y horario */
+.utn-class-card.is-compact-lane {
+  padding: 2px 3px;
+}
+
+.utn-class-card.is-compact-lane .utn-card-time {
+  font-size: 0.6rem;
+}
+
+.utn-class-card.is-compact-lane .utn-card-subject {
+  font-size: 0.64rem;
+  -webkit-line-clamp: 1;
+}
+
+.utn-class-card.is-compact-lane .utn-card-status {
+  display: none;
+}
+
+.utn-class-card.is-compact-lane .utn-card-comision {
+  font-size: 1rem;
 }
 
 .utn-empty-overlay {

@@ -85,6 +85,12 @@ if (Array.isArray(cursosSeleccionados)) {
 }
 
 let currentCuatFilter = "all"; // "all" | "1C" | "2C"
+// Materia activa en el selector para previsualizar dónde se pueden plantar sus comisiones
+let activePreviewMateriaId = null;
+// Comisión sobre la que se está pasando el mouse (hover) para resaltar todos sus bloques
+let hoveredPreviewOptionId = null;
+// Filtro para mostrar solo comisiones de Sistemas (K) o también Básicas de otras carreras en la vista previa
+let showOnlyIsiInPreview = true;
 
 function loadFromStorage(key, fallback) {
   try {
@@ -189,7 +195,7 @@ function formatShortTime(tStr) {
 }
 
 function formatBloquesResumen(bloques) {
-  return bloques
+  return getMergedBloques(bloques)
     .map(b => `${b.dia.slice(0, 3)} ${formatShortTime(b.inicio)}-${formatShortTime(b.fin)}hs`)
     .join(" • ");
 }
@@ -197,6 +203,36 @@ function formatBloquesResumen(bloques) {
 function timeToMinutes(tStr) {
   const [hh, mm] = tStr.split(":").map(Number);
   return hh * 60 + mm;
+}
+
+// Une bloques de la misma comisión en el mismo día que solo están separados por un recreo corto (<= 30 min, ej. 12:05-12:50 y 13:15-14:45 -> 12:05-14:45)
+function getMergedBloques(bloques) {
+  if (!bloques || bloques.length <= 1) return bloques || [];
+  const byDay = {};
+  for (const b of bloques) {
+    if (!byDay[b.dia]) byDay[b.dia] = [];
+    byDay[b.dia].push({ ...b, _s: timeToMinutes(b.inicio), _e: timeToMinutes(b.fin) });
+  }
+  const result = [];
+  for (const dia of Object.keys(byDay)) {
+    const list = byDay[dia].sort((a, b) => a._s - b._s);
+    let curr = list[0];
+    for (let i = 1; i < list.length; i++) {
+      const nxt = list[i];
+      // Si se tocan o están separados por un recreo de hasta 30 minutos, los unificamos en un solo bloque visual
+      if (nxt._s - curr._e <= 30) {
+        if (nxt._e > curr._e) {
+          curr.fin = nxt.fin;
+          curr._e = nxt._e;
+        }
+      } else {
+        result.push({ dia: curr.dia, inicio: curr.inicio, fin: curr.fin });
+        curr = nxt;
+      }
+    }
+    result.push({ dia: curr.dia, inicio: curr.inicio, fin: curr.fin });
+  }
+  return result;
 }
 
 // Renderizado general
@@ -417,6 +453,67 @@ function renderAlumnoCard(m) {
   `;
 }
 
+function togglePreviewMateria(materiaId) {
+  if (activePreviewMateriaId === materiaId) {
+    activePreviewMateriaId = null;
+  } else {
+    activePreviewMateriaId = materiaId;
+  }
+  hoveredPreviewOptionId = null;
+  renderCursadoPicker();
+  renderUtnCalendar();
+}
+
+function doesOptionConflictWithEnrolled(materiaId, option, enrolledBlocks) {
+  for (const b of getMergedBloques(option.bloques)) {
+    const bStart = timeToMinutes(b.inicio);
+    const bEnd = timeToMinutes(b.fin);
+    for (const eb of enrolledBlocks) {
+      if (eb.materiaId === materiaId) continue;
+      if (eb.dia !== b.dia) continue;
+      const disjointCuat =
+        (option.periodo === "1° Cuat." && eb.periodo === "2° Cuat.") ||
+        (option.periodo === "2° Cuat." && eb.periodo === "1° Cuat.");
+      if (!disjointCuat && bStart < eb.endMin && eb.startMin < bEnd) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function getEnrolledBlocksList() {
+  const list = [];
+  for (const [mId, optId] of Object.entries(cursosSeleccionados)) {
+    const materia = MATERIAS_MAP[mId];
+    if (!materia) continue;
+    const opciones = getOpcionesComision(mId);
+    const opt = opciones.find(o => o.id === optId);
+    if (!opt) continue;
+
+    if (currentCuatFilter === "1C" && opt.periodo === "2° Cuat.") continue;
+    if (currentCuatFilter === "2C" && opt.periodo === "1° Cuat.") continue;
+
+    for (const b of getMergedBloques(opt.bloques)) {
+      list.push({
+        materiaId: mId,
+        materiaNombre: materia.nombre.replace(/\s*\(Int\)\**/gi, ""),
+        comision: opt.comision,
+        optionId: opt.id,
+        periodo: opt.periodo,
+        dia: b.dia,
+        inicio: b.inicio,
+        fin: b.fin,
+        startMin: timeToMinutes(b.inicio),
+        endMin: timeToMinutes(b.fin),
+        conflict: false,
+        isPreview: false
+      });
+    }
+  }
+  return list;
+}
+
 // =========================================================================
 // PESTAÑA 2: PANEL DE SELECCIÓN DE CURSO POR MATERIA Y CALENDARIO UTN
 // =========================================================================
@@ -425,6 +522,14 @@ function renderCursadoPicker() {
   const searchQuery = document.getElementById("search-cursado").value.trim().toLowerCase();
   const filterNivel = document.getElementById("filter-nivel-cursado").value;
   const showLocked = document.getElementById("toggle-show-locked").checked;
+
+  // Si la materia que estaba en vista previa dejó de estar habilitada, limpiarla
+  if (activePreviewMateriaId) {
+    const matPrev = MATERIAS_MAP[activePreviewMateriaId];
+    if (!matPrev || !evaluarHabilitacion(matPrev).habilitadaParaCursar) {
+      activePreviewMateriaId = null;
+    }
+  }
 
   const materiasFiltradas = MATERIAS.filter(m => {
     const ev = evaluarHabilitacion(m);
@@ -449,12 +554,15 @@ function renderCursadoPicker() {
     return;
   }
 
+  const enrolledBlocks = getEnrolledBlocksList();
+
   listContainer.innerHTML = materiasFiltradas
     .map(m => {
       const ev = evaluarHabilitacion(m);
       const opciones = getOpcionesComision(m.id);
       const selectedId = cursosSeleccionados[m.id] || "";
       const selectedObj = opciones.find(o => o.id === selectedId);
+      const isPreviewActive = activePreviewMateriaId === m.id;
 
       if (!ev.habilitadaParaCursar) {
         const faltas = [];
@@ -462,73 +570,213 @@ function renderCursadoPicker() {
         if (ev.faltanAprobadas.length) faltas.push(`Apr: N° ${ev.faltanAprobadas.join(", ")}`);
         return `
           <div class="picker-item locked">
-            <div class="picker-item-header">
-              <span class="picker-item-title">[${m.numero}] ${m.nombre}</span>
-              <div class="picker-item-badges">
-                <span class="meta-tag">${m.nivel}° Año</span>
+            <div class="picker-radio-row">
+              <div class="picker-subject-info">
+                <span class="picker-item-title">${m.nombre}</span>
+                <span class="picker-locked-reason">🔒 Bloqueada (${faltas.join(" | ")})</span>
               </div>
+              <span class="picker-radio-circle disabled"></span>
             </div>
-            <div class="picker-locked-reason">🔒 Bloqueada (${faltas.join(" | ")})</div>
           </div>
         `;
       }
 
       const isIsiComision = o => /^\d+K/i.test(o.comision);
-      const renderOption = o => {
-        const resumen = formatBloquesResumen(o.bloques);
-        const isSel = o.id === selectedId ? "selected" : "";
-        return `<option value="${o.id}" ${isSel}>${o.comision} (${o.periodo}) — ${resumen}</option>`;
-      };
-
       const isiOpts = opciones.filter(isIsiComision);
       const otrasOpts = opciones.filter(o => !isIsiComision(o));
+      const displayedOpts = showOnlyIsiInPreview && isiOpts.length > 0 ? isiOpts : opciones;
 
-      let optionsHtml = "";
-      if (isiOpts.length > 0 && otrasOpts.length > 0) {
-        optionsHtml = `
-          <optgroup label="Comisiones Sistemas (K)">
-            ${isiOpts.map(renderOption).join("")}
-          </optgroup>
-          <optgroup label="Otras Especialidades / Básicas">
-            ${otrasOpts.map(renderOption).join("")}
-          </optgroup>
+      let comisionesPillsHtml = "";
+      if (isPreviewActive) {
+        const pills = displayedOpts
+          .map(o => {
+            const hasConflict = doesOptionConflictWithEnrolled(m.id, o, enrolledBlocks);
+            const isSelected = o.id === selectedId;
+            const resumen = formatBloquesResumen(o.bloques);
+            return `
+              <button type="button"
+                      class="comision-chip ${isSelected ? "chip-selected" : ""} ${hasConflict ? "chip-conflict" : ""}"
+                      data-materia-id="${m.id}"
+                      data-option-id="${o.id}"
+                      title="${o.comision} (${o.periodo}): ${resumen}${hasConflict ? " — ⚠️ Superposición de horario" : ""}">
+                <span class="chip-code">${o.comision}</span>
+                <span class="chip-period">${o.periodo === "Anual" ? "A" : o.periodo.replace("° Cuat.", "C")}</span>
+              </button>
+            `;
+          })
+          .join("");
+
+        const toggleExtraBtn =
+          otrasOpts.length > 0 && isiOpts.length > 0
+            ? `<button type="button" class="btn-toggle-extra-com" data-action="toggle-isi">
+                ${showOnlyIsiInPreview ? `+ Ver otras especialidades (${otrasOpts.length})` : `Ver solo Sistemas K (${isiOpts.length})`}
+              </button>`
+            : "";
+
+        comisionesPillsHtml = `
+          <div class="picker-preview-panel">
+            <div class="picker-preview-hint">
+              <span>Mostrando <strong>${displayedOpts.length}</strong> comisiones en la grilla (clic para plantar):</span>
+              ${selectedId ? `<button type="button" class="btn-unplant-inline" data-unplant-id="${m.id}">Quitar ${selectedObj ? selectedObj.comision : ""}</button>` : ""}
+            </div>
+            <div class="comisiones-chips-grid">
+              ${pills}
+            </div>
+            ${toggleExtraBtn}
+          </div>
         `;
-      } else {
-        optionsHtml = opciones.map(renderOption).join("");
       }
 
       return `
-        <div class="picker-item ${selectedId ? "enrolled" : ""}">
-          <div class="picker-item-header">
-            <span class="picker-item-title">[${m.numero}] ${m.nombre}</span>
-            <div class="picker-item-badges">
-              ${m.electiva ? `<span class="meta-tag tag-electiva">Electiva</span>` : ""}
-              <span class="meta-tag">${m.nivel}° Año</span>
-              <span class="meta-tag">${m.carga} hs</span>
+        <div class="picker-item ${selectedId ? "enrolled" : ""} ${isPreviewActive ? "previewing" : ""}">
+          <div class="picker-radio-row" data-toggle-materia="${m.id}" title="Clic para mostrar/ocultar dónde se plantan las comisiones de ${m.nombre} en la grilla">
+            <div class="picker-subject-info">
+              <div class="picker-title-line">
+                <span class="picker-item-title">${m.nombre}</span>
+                ${selectedObj ? `<span class="planted-badge">${selectedObj.comision}</span>` : ""}
+              </div>
+              <div class="picker-submeta">
+                <span>${m.nivel}° Año • ${m.carga} hs</span>
+                ${m.electiva ? `<span class="meta-tag tag-electiva">Electiva</span>` : ""}
+                ${selectedObj ? `<span class="planted-schedule-text">(${formatBloquesResumen(selectedObj.bloques)})</span>` : ""}
+              </div>
             </div>
+
+            <button type="button"
+                    class="picker-radio-btn ${isPreviewActive ? "active" : ""} ${selectedId ? "has-planted" : ""}"
+                    aria-label="Seleccionar ${m.nombre}"
+                    data-toggle-materia="${m.id}">
+              <span class="picker-radio-dot"></span>
+            </button>
           </div>
 
-          <select class="picker-course-select ${selectedId ? "has-value" : ""}" data-materia-id="${m.id}">
-            <option value="">— Seleccionar comisión (${opciones.length} disp.) —</option>
-            ${optionsHtml}
-          </select>
-
-          ${
-            selectedObj
-              ? `<div class="picker-schedule-preview">✓ Inscripto en <strong>${selectedObj.comision}</strong> (${selectedObj.periodo}): ${formatBloquesResumen(selectedObj.bloques)}</div>`
-              : ""
-          }
+          ${comisionesPillsHtml}
         </div>
       `;
     })
     .join("");
 
-  listContainer.querySelectorAll(".picker-course-select").forEach(sel => {
-    sel.addEventListener("change", () => {
-      const mId = sel.getAttribute("data-materia-id");
-      selectComisionMateria(mId, sel.value);
+  // Evento al hacer clic en la fila o el botón redondo de la materia (como en el boceto: "Algebra (•)")
+  listContainer.querySelectorAll("[data-toggle-materia]").forEach(el => {
+    el.addEventListener("click", e => {
+      e.stopPropagation();
+      const mId = el.getAttribute("data-toggle-materia");
+      togglePreviewMateria(mId);
     });
   });
+
+  // Evento al hacer clic o pasar el mouse sobre un chip de comisión (1K1, 1K2, etc.)
+  listContainer.querySelectorAll(".comision-chip").forEach(chip => {
+    chip.addEventListener("click", e => {
+      e.stopPropagation();
+      const mId = chip.getAttribute("data-materia-id");
+      const optId = chip.getAttribute("data-option-id");
+      if (cursosSeleccionados[mId] === optId) {
+        selectComisionMateria(mId, "");
+      } else {
+        selectComisionMateria(mId, optId);
+      }
+    });
+
+    chip.addEventListener("mouseenter", () => {
+      hoveredPreviewOptionId = chip.getAttribute("data-option-id");
+      highlightHoveredOptionInCalendar(hoveredPreviewOptionId);
+    });
+
+    chip.addEventListener("mouseleave", () => {
+      hoveredPreviewOptionId = null;
+      highlightHoveredOptionInCalendar(null);
+    });
+  });
+
+  // Botón para quitar comisión plantada
+  listContainer.querySelectorAll("[data-unplant-id]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      const mId = btn.getAttribute("data-unplant-id");
+      selectComisionMateria(mId, "");
+    });
+  });
+
+  // Botón para alternar entre solo comisiones K o todas las básicas
+  listContainer.querySelectorAll('[data-action="toggle-isi"]').forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      showOnlyIsiInPreview = !showOnlyIsiInPreview;
+      renderCursadoPicker();
+      renderUtnCalendar();
+    });
+  });
+}
+
+function highlightHoveredOptionInCalendar(optionId) {
+  const allCards = document.querySelectorAll(".utn-class-card");
+  allCards.forEach(card => {
+    const cardOptId = card.getAttribute("data-option-id");
+    if (!optionId) {
+      card.classList.remove("is-hovered-option", "is-dimmed-preview");
+    } else if (cardOptId === optionId) {
+      card.classList.add("is-hovered-option");
+      card.classList.remove("is-dimmed-preview");
+    } else if (card.classList.contains("is-preview-card")) {
+      card.classList.add("is-dimmed-preview");
+      card.classList.remove("is-hovered-option");
+    }
+  });
+}
+
+function computeColumnLanes(dayBlocks) {
+  if (dayBlocks.length === 0) return [];
+  const sorted = [...dayBlocks].sort((a, b) => {
+    if (a.startMin !== b.startMin) return a.startMin - b.startMin;
+    if (a.isPreview !== b.isPreview) return a.isPreview ? 1 : -1;
+    return b.endMin - a.endMin;
+  });
+
+  // Agrupar bloques que se solapan temporalmente en clusters
+  const clusters = [];
+  let currentCluster = [];
+  let clusterEnd = -1;
+
+  for (const blk of sorted) {
+    if (currentCluster.length === 0 || blk.startMin < clusterEnd) {
+      currentCluster.push(blk);
+      clusterEnd = Math.max(clusterEnd, blk.endMin);
+    } else {
+      clusters.push(currentCluster);
+      currentCluster = [blk];
+      clusterEnd = blk.endMin;
+    }
+  }
+  if (currentCluster.length > 0) {
+    clusters.push(currentCluster);
+  }
+
+  // Para cada cluster, asignar carriles (lanes) para que todas las opciones ("1K1", "1K2", etc.) se vean sin taparse
+  for (const cluster of clusters) {
+    const laneEnds = [];
+    for (const blk of cluster) {
+      let assignedLane = -1;
+      for (let l = 0; l < laneEnds.length; l++) {
+        if (laneEnds[l] <= blk.startMin) {
+          assignedLane = l;
+          laneEnds[l] = blk.endMin;
+          break;
+        }
+      }
+      if (assignedLane === -1) {
+        assignedLane = laneEnds.length;
+        laneEnds.push(blk.endMin);
+      }
+      blk.laneIndex = assignedLane;
+    }
+    const totalLanes = laneEnds.length;
+    for (const blk of cluster) {
+      blk.totalLanes = totalLanes;
+    }
+  }
+
+  return sorted;
 }
 
 function renderUtnCalendar() {
@@ -539,8 +787,8 @@ function renderUtnCalendar() {
 
   const daysOrder = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
-  // Recolectar todos los bloques de las comisiones seleccionadas
-  const activeBlocks = [];
+  // 1) Recolectar todos los bloques de las comisiones ya plantadas (inscriptas)
+  const enrolledBlocks = [];
   let totalMaterias = 0;
   let totalHoras = 0;
 
@@ -558,18 +806,20 @@ function renderUtnCalendar() {
     totalMaterias++;
     totalHoras += materia.carga;
 
-    for (const b of opt.bloques) {
-      activeBlocks.push({
+    for (const b of getMergedBloques(opt.bloques)) {
+      enrolledBlocks.push({
         materiaId: mId,
         materiaNombre: materia.nombre.replace(/\s*\(Int\)\**/gi, ""),
         comision: opt.comision,
+        optionId: opt.id,
         periodo: opt.periodo,
         dia: b.dia,
         inicio: b.inicio,
         fin: b.fin,
         startMin: timeToMinutes(b.inicio),
         endMin: timeToMinutes(b.fin),
-        conflict: false
+        conflict: false,
+        isPreview: false
       });
     }
   }
@@ -577,14 +827,13 @@ function renderUtnCalendar() {
   summaryPill.textContent = `${totalMaterias} ${totalMaterias === 1 ? "materia inscripta" : "materias inscriptas"} (${totalHoras} hs/sem)`;
   btnClear.disabled = Object.keys(cursosSeleccionados).length === 0;
 
-  // Detectar superposiciones horarias en el mismo día
+  // Detectar superposiciones horarias entre materias ya inscriptas
   const conflictsList = [];
-  for (let i = 0; i < activeBlocks.length; i++) {
-    for (let j = i + 1; j < activeBlocks.length; j++) {
-      const a = activeBlocks[i];
-      const b = activeBlocks[j];
+  for (let i = 0; i < enrolledBlocks.length; i++) {
+    for (let j = i + 1; j < enrolledBlocks.length; j++) {
+      const a = enrolledBlocks[i];
+      const b = enrolledBlocks[j];
       if (a.dia === b.dia) {
-        // Si uno es 1C y el otro 2C no chocan en la realidad
         const disjointCuat =
           (a.periodo === "1° Cuat." && b.periodo === "2° Cuat.") ||
           (a.periodo === "2° Cuat." && b.periodo === "1° Cuat.");
@@ -599,53 +848,168 @@ function renderUtnCalendar() {
     }
   }
 
-  if (conflictsList.length > 0) {
-    conflictBanner.style.display = "block";
-    conflictBanner.innerHTML = `⚠️ <strong>Superposición horaria detectada:</strong><br>${conflictsList.join("<br>")}`;
-  } else {
-    conflictBanner.style.display = "none";
-  }
+  // 2) Si hay una materia seleccionada en el selector de la izquierda (activePreviewMateriaId),
+  // generar los bloques de vista previa ("dónde se va a plantar") para sus comisiones.
+  // Si una comisión choca con otra materia ya plantada en ese día y horario, se marca en ROJO (conflict = true).
+  const previewBlocks = [];
+  let previewMateriaObj = null;
 
-  // Determinar el rango horario vertical para escalar la grilla con precisión
-  let minMin = 8 * 60; // 08:00
-  let maxMin = 23 * 60 + 15; // 23:15
+  if (activePreviewMateriaId && MATERIAS_MAP[activePreviewMateriaId]) {
+    previewMateriaObj = MATERIAS_MAP[activePreviewMateriaId];
+    const todasOpciones = getOpcionesComision(activePreviewMateriaId);
+    const isIsiComision = o => /^\d+K/i.test(o.comision);
+    const isiOpts = todasOpciones.filter(isIsiComision);
+    const opcionesAMostrar = showOnlyIsiInPreview && isiOpts.length > 0 ? isiOpts : todasOpciones;
+    const plantedOptionId = cursosSeleccionados[activePreviewMateriaId] || null;
 
-  if (activeBlocks.length > 0) {
-    const earliest = Math.min(...activeBlocks.map(b => b.startMin));
-    const latest = Math.max(...activeBlocks.map(b => b.endMin));
-    minMin = Math.max(7 * 60 + 30, Math.floor((earliest - 30) / 60) * 60);
-    maxMin = Math.min(23 * 60 + 30, Math.ceil((latest + 30) / 60) * 60);
-    if (maxMin - minMin < 360) {
-      maxMin = Math.min(23 * 60 + 30, minMin + 420);
+    for (const opt of opcionesAMostrar) {
+      // Si esta comisión ya está plantada como inscripta, ya está en enrolledBlocks
+      if (opt.id === plantedOptionId) continue;
+
+      if (currentCuatFilter === "1C" && opt.periodo === "2° Cuat.") continue;
+      if (currentCuatFilter === "2C" && opt.periodo === "1° Cuat.") continue;
+
+      // Verificar si la comisión entera o cada bloque tiene choque con otra materia ya plantada
+      const optionConflicts = doesOptionConflictWithEnrolled(activePreviewMateriaId, opt, enrolledBlocks);
+
+      for (const b of getMergedBloques(opt.bloques)) {
+        const bStart = timeToMinutes(b.inicio);
+        const bEnd = timeToMinutes(b.fin);
+        let blockConflictsWithOther = false;
+        const conflictingNames = [];
+
+        for (const eb of enrolledBlocks) {
+          if (eb.materiaId === activePreviewMateriaId) continue;
+          if (eb.dia !== b.dia) continue;
+          const disjointCuat =
+            (opt.periodo === "1° Cuat." && eb.periodo === "2° Cuat.") ||
+            (opt.periodo === "2° Cuat." && eb.periodo === "1° Cuat.");
+          if (!disjointCuat && bStart < eb.endMin && eb.startMin < bEnd) {
+            blockConflictsWithOther = true;
+            conflictingNames.push(`${eb.materiaNombre} (${eb.comision})`);
+            // También marcamos en rojo el bloque plantado en ese horario y día para que resalte el choque
+            eb.conflictWithPreview = true;
+          }
+        }
+
+        previewBlocks.push({
+          materiaId: activePreviewMateriaId,
+          materiaNombre: previewMateriaObj.nombre.replace(/\s*\(Int\)\**/gi, ""),
+          comision: opt.comision,
+          optionId: opt.id,
+          periodo: opt.periodo,
+          dia: b.dia,
+          inicio: b.inicio,
+          fin: b.fin,
+          startMin: bStart,
+          endMin: bEnd,
+          conflict: blockConflictsWithOther || optionConflicts,
+          blockDirectConflict: blockConflictsWithOther,
+          conflictingNames,
+          isPreview: true
+        });
+      }
     }
   }
 
+  const allBlocks = [...enrolledBlocks, ...previewBlocks];
+
+  if (conflictsList.length > 0) {
+    conflictBanner.style.display = "block";
+    conflictBanner.innerHTML = `⚠️ <strong>Superposición horaria detectada:</strong><br>${conflictsList.join("<br>")}`;
+  } else if (previewMateriaObj) {
+    conflictBanner.style.display = "block";
+    conflictBanner.className = "conflict-banner preview-active-banner";
+    conflictBanner.innerHTML = `📍 Previsualizando dónde plantar <strong>${previewMateriaObj.nombre}</strong>: hacé clic en cualquier bloque (ej. <strong>1K1</strong>, <strong>1K2</strong>...) en la grilla para plantarla. Los bloques en <strong style="color:#fca5a5;">rojo</strong> indican que ya hay otra materia en ese día y horario.`;
+  } else {
+    conflictBanner.className = "conflict-banner";
+    conflictBanner.style.display = "none";
+  }
+
+  if (conflictsList.length > 0) {
+    conflictBanner.className = "conflict-banner";
+  }
+
+  // Determinar el rango horario vertical en horas enteras para que la columna de horas (08:00, 09:00, 10:00...) y las franjas coincidan con precisión
+  let minHour = 8; // 08:00
+  let maxHour = 23; // 23:00
+
+  if (allBlocks.length > 0) {
+    const earliest = Math.min(...allBlocks.map(b => b.startMin));
+    const latest = Math.max(...allBlocks.map(b => b.endMin));
+    minHour = Math.max(7, Math.floor(earliest / 60));
+    maxHour = Math.min(24, Math.ceil(latest / 60));
+    if (maxHour - minHour < 8) {
+      maxHour = Math.min(24, minHour + 8);
+    }
+  }
+
+  const minMin = minHour * 60;
+  const maxMin = maxHour * 60;
   const totalRange = maxMin - minMin;
-  const NUM_STRIPES = 12;
+  const numHours = maxHour - minHour;
 
   let stripesHtml = `<div class="utn-stripes-layer">`;
-  for (let s = 0; s < NUM_STRIPES; s++) {
+  let timeColSlotsHtml = "";
+
+  for (let h = minHour; h < maxHour; h++) {
+    const hLabel = `${h}:00`;
     stripesHtml += `<div class="utn-stripe-band"></div>`;
+    timeColSlotsHtml += `<div class="utn-time-slot"><span>${hLabel}</span></div>`;
   }
   stripesHtml += `</div>`;
 
+  const timeColHtml = `<div class="utn-time-column">${timeColSlotsHtml}</div>`;
+
   let colsHtml = "";
   for (const dayName of daysOrder) {
-    const dayBlocks = activeBlocks.filter(b => b.dia === dayName);
+    const dayBlocks = computeColumnLanes(allBlocks.filter(b => b.dia === dayName));
     const cardsHtml = dayBlocks
       .map(b => {
         const topPct = ((b.startMin - minMin) / totalRange) * 100;
-        const heightPct = Math.max(8.5, ((b.endMin - b.startMin) / totalRange) * 100);
+        const heightPct = Math.max(7.5, ((b.endMin - b.startMin) / totalRange) * 100);
         const timeLabel = `${formatShortTime(b.inicio)} — ${formatShortTime(b.fin)}hs`;
 
+        const totalLanes = b.totalLanes || 1;
+        const laneIndex = b.laneIndex || 0;
+        const widthPct = 100 / totalLanes;
+        const leftPct = laneIndex * widthPct;
+        const isTwoLanes = totalLanes === 2;
+        const isCompactLane = totalLanes >= 3;
+
+        const isRedConflict = b.conflict || b.conflictWithPreview;
+        const cardClasses = [
+          "utn-class-card",
+          b.isPreview ? "is-preview-card" : "is-enrolled-card",
+          isRedConflict ? "has-conflict" : "",
+          isTwoLanes ? "is-two-lanes" : "",
+          isCompactLane ? "is-compact-lane" : ""
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        const tooltipText = b.isPreview
+          ? b.conflict
+            ? `⚠️ Choca con ${b.conflictingNames && b.conflictingNames.length ? b.conflictingNames.join(", ") : "otra materia plantada en otro día"} — Clic para plantar igual ${b.materiaNombre} (${b.comision} - ${b.periodo})`
+            : `Clic para plantar ${b.materiaNombre} en comisión ${b.comision} (${b.periodo}: ${timeLabel})`
+          : `Inscripto: ${b.materiaNombre} (${b.comision} - ${b.periodo}). Clic para ver opciones o cambiar.`;
+
+        const statusText = b.isPreview
+          ? b.conflict
+            ? "(Ocupado / Choque)"
+            : "(Plantar aquí)"
+          : "(Inscripto)";
+
         return `
-          <div class="utn-class-card ${b.conflict ? "has-conflict" : ""}"
-               style="top: ${topPct.toFixed(2)}%; height: ${heightPct.toFixed(2)}%;"
+          <div class="${cardClasses}"
+               style="top: ${topPct.toFixed(2)}%; height: ${heightPct.toFixed(2)}%; left: calc(${leftPct.toFixed(2)}% + 2px); width: calc(${widthPct.toFixed(2)}% - 4px);"
                data-materia-id="${b.materiaId}"
-               title="Clic para cambiar o quitar ${b.materiaNombre} (${b.comision} - ${b.periodo})">
+               data-option-id="${b.optionId}"
+               data-is-preview="${b.isPreview ? "1" : "0"}"
+               title="${tooltipText}">
             <div class="utn-card-time">${timeLabel}</div>
             <div class="utn-card-subject">${b.materiaNombre}</div>
-            <div class="utn-card-status">(Inscripto)</div>
+            <div class="utn-card-status">${statusText}</div>
             <div class="utn-card-comision">${b.comision}</div>
           </div>
         `;
@@ -656,25 +1020,42 @@ function renderUtnCalendar() {
   }
 
   const emptyOverlayHtml =
-    activeBlocks.length === 0
+    allBlocks.length === 0
       ? `<div class="utn-empty-overlay">
           <div class="utn-empty-box">
             <h3>Tu grilla de horarios está vacía</h3>
-            <p>Elegí la comisión (ej. <strong>1K1</strong>, <strong>2K6</strong>, <strong>3K3</strong>) en la lista de <strong>Materias Disponibles</strong> de la izquierda para ver tus bloques horarios aquí.</p>
+            <p>Seleccioná una materia (ej. <strong>Álgebra</strong>) en la lista de <strong>Materias</strong> de la izquierda para ver en qué días y horarios se plantan sus comisiones (<strong>1K1</strong>, <strong>1K2</strong>, <strong>1K3</strong>...).</p>
           </div>
         </div>`
       : "";
 
-  calBody.innerHTML = stripesHtml + colsHtml + emptyOverlayHtml;
+  calBody.innerHTML = stripesHtml + timeColHtml + colsHtml + emptyOverlayHtml;
 
-  // Al hacer clic en una tarjeta del calendario, enfocar el selector de esa materia a la izquierda
+  // Eventos en las tarjetas del calendario:
+  // - Si es una tarjeta de vista previa (is-preview-card): al hacer clic se planta directamente esa comisión!
+  // - Si es una tarjeta ya plantada (is-enrolled-card): al hacer clic abre/alterna la vista previa de esa materia.
   calBody.querySelectorAll(".utn-class-card").forEach(card => {
+    const mId = card.getAttribute("data-materia-id");
+    const optId = card.getAttribute("data-option-id");
+    const isPrev = card.getAttribute("data-is-preview") === "1";
+
     card.addEventListener("click", () => {
-      const mId = card.getAttribute("data-materia-id");
-      const selectEl = document.querySelector(`.picker-course-select[data-materia-id="${mId}"]`);
-      if (selectEl) {
-        selectEl.scrollIntoView({ behavior: "smooth", block: "center" });
-        selectEl.focus();
+      if (isPrev) {
+        selectComisionMateria(mId, optId);
+      } else {
+        togglePreviewMateria(mId);
+      }
+    });
+
+    card.addEventListener("mouseenter", () => {
+      if (activePreviewMateriaId) {
+        highlightHoveredOptionInCalendar(optId);
+      }
+    });
+
+    card.addEventListener("mouseleave", () => {
+      if (activePreviewMateriaId) {
+        highlightHoveredOptionInCalendar(null);
       }
     });
   });

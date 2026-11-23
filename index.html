@@ -169,8 +169,8 @@
         <!-- COLUMNA IZQUIERDA: SELECTOR DE MATERIA + COMISIÓN (1K1, 2K6, 3K3, etc.) -->
         <aside class="courses-picker-panel">
           <div class="picker-header">
-            <h2>Materias Disponibles</h2>
-            <p>Elegí la comisión (curso) para cada materia habilitada</p>
+            <h2>Materias</h2>
+            <p>Marcá una materia para ver dónde se ubican sus comisiones en la grilla y hacé clic en una comisión para plantarla</p>
           </div>
 
           <div class="picker-filters">
@@ -226,10 +226,11 @@
           <!-- ALERTA DE SUPERPOSICIÓN DE HORARIOS -->
           <div id="conflict-alert-banner" class="conflict-banner" style="display: none;"></div>
 
-          <!-- TABLA ESTILO AUTOGESTIÓN UTN (COMO EN LA IMAGEN) -->
+          <!-- TABLA ESTILO AUTOGESTIÓN UTN (CON COLUMNA DE HORAS A LA IZQUIERDA) -->
           <div class="utn-calendar-wrapper">
             <div class="utn-calendar" id="utn-calendar">
               <div class="utn-cal-header">
+                <div class="utn-time-col-header">Hora</div>
                 <div class="utn-day-col-header">Lunes</div>
                 <div class="utn-day-col-header">Martes</div>
                 <div class="utn-day-col-header">Miercoles</div>
@@ -239,7 +240,7 @@
               </div>
 
               <div class="utn-cal-body" id="utn-cal-body">
-                <!-- Se genera dinámicamente con las franjas y tarjetas blancas con borde superior azul -->
+                <!-- Se genera dinámicamente con la columna de horas, las franjas por hora y tarjetas -->
               </div>
             </div>
           </div>
