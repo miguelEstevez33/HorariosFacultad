@@ -68,7 +68,7 @@
     { id: "E13", numero: "EL-5", nivel: 5, nombre: "Consultoría en Negocios Digitales", modalidad: "2C", regular: ["30"], aprobada: ["20"], carga: 3, creditos: 3, electiva: true },
     { id: "E14", numero: "EL-5", nivel: 5, nombre: "Emprendimientos Tecnológicos", modalidad: "1C-2C", regular: ["30"], aprobada: ["16", "19"], carga: 3, creditos: 3, electiva: true },
     { id: "E15", numero: "EL-5", nivel: 5, nombre: "Habilidades Blandas", modalidad: "2C", regular: ["30"], aprobada: [], carga: 3, creditos: 3, electiva: true },
-    { id: "E16", numero: "EL-5", nivel: 5, nombre: "Decisiones en Escenarios Complejos", modalidad: "1C-2C", regular: ["27"], aprobada: [], carga: 3, creditos: 3, electiva: true },
+    { id: "E16", numero: "EL-5", nivel: 5, nombre: "Decisiones en Escenarios Complejos", modalidad: "1C-2C", regular: ["27"], aprobada: ["19"], carga: 3, creditos: 3, electiva: true },
     { id: "E17", numero: "EL-5", nivel: 5, nombre: "Testing de Software", modalidad: "2C", regular: ["25"], aprobada: ["19", "20"], carga: 3, creditos: 3, electiva: true },
     { id: "E18", numero: "EL-5", nivel: 5, nombre: "Integración de Aplicaciones en Entorno Web", modalidad: "2C", regular: ["26"], aprobada: ["19", "20"], carga: 3, creditos: 3, electiva: true },
     { id: "E19", numero: "EL-5", nivel: 5, nombre: "Ingeniería de Software de Fuentes Abiertas/Libres", modalidad: "1C", regular: ["19", "20", "26"], aprobada: ["13", "14"], carga: 3, creditos: 3, electiva: true }
