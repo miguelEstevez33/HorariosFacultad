@@ -51,13 +51,22 @@ Aplicación web estática para gestionar el avance académico, verificar correla
 
 ---
 
-## Cómo generar el APK de Android (Capacitor)
+## App para Android (.apk)
 
-### Requisitos
+Tenés dos formas de instalar la aplicación en tu celular:
+
+### Opción A: Descargar el APK listo (recomendado)
+1. Entrá a la sección **Releases** del repositorio en GitHub.
+2. Descargá el archivo `.apk` de la última versión directamente en tu celular.
+3. Abrilo desde tu gestor de archivos (ej. *Mis Archivos* / *Descargas*) y aceptá *"Instalar apps desconocidas"* si Android lo solicita.
+
+### Opción B: Compilar el APK manualmente (Capacitor)
+
+#### Requisitos
 - **Node.js** instalado.
 - **Android Studio** (o Android SDK + Gradle) para compilar el `.apk`.
 
-### Pasos
+#### Pasos
 1. Instalá las dependencias del proyecto (una sola vez):
    ```bash
    npm install
@@ -71,7 +80,7 @@ Aplicación web estática para gestionar el avance académico, verificar correla
      ```bash
      npm run android:open
      ```
-     Luego en Android Studio: menú **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
+     Luego en Android Studio: menú **≡ → Build → Build Bundle(s) / APK(s) → Build APK(s)**.
    - **Desde terminal (si tenés `ANDROID_HOME` configurado):**
      ```bash
      npm run android:apk
