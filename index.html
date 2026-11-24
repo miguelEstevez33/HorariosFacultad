@@ -37,6 +37,9 @@
           <span class="stat-label">Créditos Electivas</span>
           <span class="stat-value" id="stat-creditos">0 / 20</span>
         </div>
+        <button type="button" id="btn-kill-materia-header" class="btn btn-kill-materia btn-sm" style="display: none;" title="Ver qué materia inscripta te conviene dejar según cuántas materias futuras te traba">
+          💀 Matar Materia
+        </button>
       </div>
     </div>
 
@@ -217,6 +220,9 @@
 
             <div class="schedule-toolbar-right">
               <span class="enrolled-summary" id="enrolled-summary-pill">0 materias inscriptas (0 hs/sem)</span>
+              <button type="button" id="btn-kill-materia" class="btn btn-kill-materia btn-sm" disabled title="Te ordena tus materias inscriptas de menor a mayor según cuántas materias te traban (necesitás al menos 2 inscriptas)">
+                💀 Matar Materia
+              </button>
               <button type="button" id="btn-clear-plan" class="btn btn-outline-danger btn-sm" disabled>
                 Vaciar horario
               </button>
@@ -248,6 +254,36 @@
       </div>
     </section>
   </main>
+
+  <!-- MODAL: MATAR MATERIA -->
+  <div id="kill-materia-modal" class="kill-modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="kill-modal-title">
+    <div class="kill-modal-dialog">
+      <div class="kill-modal-header">
+        <div class="kill-modal-title-group">
+          <div class="kill-modal-icon">💀</div>
+          <div>
+            <h2 id="kill-modal-title">Matar Materia — Ranking de Impacto</h2>
+            <p class="kill-modal-subtitle">Tus materias inscriptas ordenadas de <strong>menor a mayor</strong> según cuántas materias futuras te traban</p>
+          </div>
+        </div>
+        <button type="button" id="btn-close-kill-modal" class="kill-modal-close" aria-label="Cerrar">&times;</button>
+      </div>
+
+      <div class="kill-modal-controls">
+        <span class="kill-controls-Hint">💡 La primera de la lista es la candidata ideal para sacrificar si necesitás bajar carga horaria.</span>
+        <label class="toggle-check" style="font-size: 0.78rem;">
+          <input type="checkbox" id="kill-include-electivas" />
+          <span>Contar también electivas que traba</span>
+        </label>
+      </div>
+
+      <div id="kill-materia-list" class="kill-materia-list"></div>
+
+      <div class="kill-modal-footer">
+        <button type="button" id="btn-close-kill-modal-footer" class="btn btn-primary btn-sm">Cerrar</button>
+      </div>
+    </div>
+  </div>
 
   <script src="schedules.js"></script>
   <script src="app.js"></script>
