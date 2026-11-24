@@ -34,6 +34,30 @@
     }
   }
 
+  function setupThemeToggle() {
+    const btn = document.getElementById("btn-toggle-theme");
+    if (!btn) return;
+
+    function syncButtonLabel() {
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      btn.textContent = isDark ? "Modo claro" : "Modo oscuro";
+      btn.setAttribute("aria-pressed", String(isDark));
+    }
+
+    syncButtonLabel();
+    btn.addEventListener("click", () => {
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      if (isDark) {
+        document.documentElement.removeAttribute("data-theme");
+        localStorage.setItem("horarios_theme", "light");
+      } else {
+        document.documentElement.setAttribute("data-theme", "dark");
+        localStorage.setItem("horarios_theme", "dark");
+      }
+      syncButtonLabel();
+    });
+  }
+
   function setupNavigationEvents() {
     document.querySelectorAll(".tab-btn").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -56,6 +80,7 @@
       SyncModal
     } = App.components;
 
+    setupThemeToggle();
     setupNavigationEvents();
     AlumnoTab.bindEvents();
     CursadoPicker.bindEvents();

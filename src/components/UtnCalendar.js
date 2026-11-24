@@ -33,6 +33,7 @@
     const calBody = document.getElementById("utn-cal-body");
     const summaryPill = document.getElementById("enrolled-summary-pill");
     const btnClear = document.getElementById("btn-clear-plan");
+    const btnExport = document.getElementById("btn-export-schedule");
     const conflictBanner = document.getElementById("conflict-alert-banner");
 
     const daysOrder = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -88,6 +89,9 @@
 
     summaryPill.textContent = `${totalMaterias} ${totalMaterias === 1 ? "materia inscripta" : "materias inscriptas"} (${totalHoras} hs/sem)`;
     btnClear.disabled = Object.keys(state.cursosSeleccionados).length === 0;
+    if (btnExport) {
+      btnExport.disabled = totalMaterias === 0;
+    }
 
     // Detectar superposiciones horarias entre materias ya inscriptas
     const conflictsList = [];
@@ -341,6 +345,15 @@
     document.getElementById("btn-clear-plan").addEventListener("click", () => {
       App.store.clearPlan();
     });
+
+    const btnExport = document.getElementById("btn-export-schedule");
+    if (btnExport) {
+      btnExport.addEventListener("click", () => {
+        if (App.exportSchedule && typeof App.exportSchedule.exportSchedulePng === "function") {
+          App.exportSchedule.exportSchedulePng();
+        }
+      });
+    }
   }
 
   App.components.UtnCalendar = {

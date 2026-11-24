@@ -9,6 +9,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="src/styles/main.css" />
+  <script>
+    if (localStorage.getItem("horarios_theme") === "dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  </script>
 </head>
 <body>
   <header class="app-header">
@@ -39,10 +44,13 @@
           <span class="stat-value" id="stat-creditos">0 / 20</span>
         </div>
         <button type="button" id="btn-kill-materia-header" class="btn btn-kill-materia btn-sm" style="display: none;" title="Ver qué materia inscripta te conviene dejar según cuántas materias futuras te traba">
-          💀 Matar Materia
+          Matar Materia
         </button>
         <button type="button" id="btn-open-sync" class="btn btn-sync-header btn-sm" title="Sincronizar materias y horarios entre PC y Celular">
-          🔄 Sincronizar
+          Sincronizar
+        </button>
+        <button type="button" id="btn-toggle-theme" class="btn btn-theme-toggle btn-sm" aria-pressed="false" title="Alternar entre modo claro y modo oscuro">
+          Modo oscuro
         </button>
       </div>
     </div>
@@ -173,7 +181,7 @@
           <strong>Paso 1:</strong> Marcá qué materias tenés <strong>Regulares</strong> o <strong>Aprobadas</strong>. En base a eso se destrabarán automáticamente las materias y sus comisiones en la pestaña <strong>Cursado</strong>.
         </div>
         <button class="btn btn-primary btn-sm" id="btn-go-cursado">
-          Ir a elegir cursos y armar horario →
+          Ir a elegir cursos y armar horario
         </button>
       </div>
 
@@ -234,8 +242,11 @@
 
             <div class="schedule-toolbar-right">
               <span class="enrolled-summary" id="enrolled-summary-pill">0 materias inscriptas (0 hs/sem)</span>
-              <button type="button" id="btn-kill-materia" class="btn btn-kill-materia btn-sm" disabled title="Te ordena tus materias inscriptas de menor a mayor según cuántas materias te traban (necesitás al menos 2 inscriptas)">
-                💀 Matar Materia
+              <button type="button" id="btn-export-schedule" class="btn btn-secondary btn-sm" disabled title="Exportar la grilla semanal como imagen PNG con un color distinto por materia">
+                Exportar horario
+              </button>
+              <button type="button" id="btn-kill-materia" class="btn btn-kill-materia btn-sm" disabled title="Te ordena tus materias inscriptas de menor a mayor según cuántas materias futuras te traban (necesitás al menos 2 inscriptas)">
+                Matar Materia
               </button>
               <button type="button" id="btn-clear-plan" class="btn btn-outline-danger btn-sm" disabled>
                 Vaciar horario
@@ -418,6 +429,7 @@
   <script src="src/state/store.js"></script>
   <script src="src/utils/correlativas.js"></script>
   <script src="src/utils/schedule.js"></script>
+  <script src="src/utils/exportSchedule.js"></script>
 
   <!-- Componentes -->
   <script src="src/components/HeaderStats.js"></script>
