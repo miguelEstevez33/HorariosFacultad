@@ -653,14 +653,14 @@ body {
    ========================================================= */
 .cursado-workspace {
   display: grid;
-  grid-template-columns: 350px 1fr;
+  grid-template-columns: 350px minmax(0, 1fr);
   gap: 1.25rem;
   align-items: start;
 }
 
 @media (max-width: 1080px) {
   .cursado-workspace {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -675,6 +675,8 @@ body {
   max-height: calc(100vh - 125px);
   position: sticky;
   top: 68px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .picker-header {
@@ -993,6 +995,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .schedule-toolbar {
@@ -1743,8 +1747,8 @@ body {
   border-top: 1px solid var(--border);
 }
 
-/* Botón Instalar PWA */
-.btn-install-pwa {
+/* Botón Sincronizar PC ↔ Celular */
+.btn-sync-header {
   background: linear-gradient(135deg, #2b7bb9, #0284c7);
   border-color: rgba(56, 189, 248, 0.5);
   color: #ffffff;
@@ -1753,9 +1757,194 @@ body {
   box-shadow: 0 2px 10px rgba(2, 132, 199, 0.35);
 }
 
-.btn-install-pwa:hover {
+.btn-sync-header:hover {
   background: linear-gradient(135deg, #0284c7, #0369a1);
   transform: translateY(-1px);
+}
+
+/* Modal Sincronización PC ↔ Celular */
+.sync-modal-dialog {
+  max-width: 620px;
+}
+
+.sync-modal-icon {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.sync-modal-body {
+  padding: 1.15rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+}
+
+.sync-device-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.sync-device-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #bae6fd;
+  background: rgba(56, 189, 248, 0.14);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+}
+
+.sync-conn-status {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sync-url-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.sync-field-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sync-url-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.sync-url-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.88rem;
+  font-family: inherit;
+}
+
+.sync-url-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.sync-helper-text {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.sync-helper-text code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.1rem 0.38rem;
+  border-radius: 4px;
+  color: #93c5fd;
+}
+
+.sync-last-info {
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.9rem;
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+
+.sync-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+}
+
+@media (max-width: 580px) {
+  .sync-actions-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sync-action-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  text-align: left;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.sync-action-card:hover {
+  transform: translateY(-2px);
+}
+
+.sync-action-push {
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+.sync-action-push:hover {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: #38bdf8;
+}
+
+.sync-action-pull {
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+.sync-action-pull:hover {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: #10b981;
+}
+
+.sync-action-emoji {
+  font-size: 1.35rem;
+}
+
+.sync-action-card strong {
+  font-size: 0.9rem;
+}
+
+.sync-action-card small {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.sync-feedback {
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.sync-feedback-info {
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #bfdbfe;
+}
+
+.sync-feedback-success {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #6ee7b7;
+}
+
+.sync-feedback-error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fecaca;
 }
 
 /* =========================================================
@@ -2205,6 +2394,12 @@ body {
 /* =========================================================
    ADAPTACIÓN RESPONSIVE / CELULARES & PWA STANDALONE
    ========================================================= */
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
 body {
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -2259,28 +2454,30 @@ body {
     font-size: 0.76rem;
   }
 
-  .btn-install-pwa {
+  .btn-sync-header {
     width: 100%;
     justify-content: center;
   }
 
   /* Pestañas adaptadas a ancho móvil */
   .tabs-container {
-    gap: 0.25rem;
+    gap: 0.15rem;
   }
 
   .tab-btn {
     flex: 1;
+    min-width: 0;
     justify-content: center;
-    padding: 0.75rem 0.5rem;
-    font-size: 0.8rem;
+    padding: 0.6rem 0.3rem;
+    font-size: 0.72rem;
+    line-height: 1.2;
     text-align: center;
-    gap: 0.4rem;
+    gap: 0.25rem;
   }
 
   .tab-icon {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     flex-shrink: 0;
   }
 
@@ -2353,6 +2550,16 @@ body {
     justify-content: space-between;
   }
 
+  .schedule-toolbar-right {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+
+  .schedule-toolbar-right .enrolled-summary {
+    grid-column: 1 / -1;
+  }
+
   .cuat-segmented {
     width: 100%;
     display: grid;
@@ -2361,27 +2568,114 @@ body {
 
   .cuat-btn {
     text-align: center;
-    padding: 0.4rem 0.3rem;
-    font-size: 0.74rem;
+    padding: 0.4rem 0.2rem;
+    font-size: 0.72rem;
   }
 
-  /* Grilla horaria más compacta y deslizable en celular */
+  /* Grilla horaria ajustada al 100% del ancho de pantalla del celular (sin deslizar horizontalmente) */
+  .utn-calendar-wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   .utn-calendar {
-    min-width: 720px;
+    min-width: 100%;
+    width: 100%;
   }
 
   .utn-cal-header,
   .utn-cal-body {
-    grid-template-columns: 52px repeat(6, 1fr);
+    grid-template-columns: 34px repeat(6, minmax(0, 1fr));
   }
 
   .utn-cal-header {
-    font-size: 0.88rem;
-    height: 38px;
+    font-size: 0.65rem;
+    height: 32px;
   }
 
   .utn-time-col-header {
+    font-size: 0.6rem;
+    padding: 0.25rem 0.1rem;
+  }
+
+  .utn-day-col-header {
+    padding: 0.25rem 0.1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .utn-cal-body,
+  .utn-time-column,
+  .utn-day-column {
+    min-height: 620px;
+  }
+
+  .utn-time-slot {
+    font-size: 0.58rem;
+    padding-top: 2px;
+  }
+
+  .utn-class-card {
+    left: 1.5px;
+    right: 1.5px;
+    padding: 2px 2px 2px 2px;
+    border-radius: 4px;
+    border-top-width: 3px;
+  }
+
+  .utn-class-card.is-enrolled-card {
+    border-width: 1.5px;
+    border-top-width: 3.5px;
+  }
+
+  .utn-card-time {
+    font-size: 0.52rem;
+  }
+
+  .utn-card-subject {
+    font-size: 0.55rem;
+    line-height: 1.05;
+    -webkit-line-clamp: 2;
+    word-break: break-word;
+  }
+
+  .utn-card-status {
+    display: none;
+  }
+
+  .utn-card-comision {
     font-size: 0.76rem;
+  }
+
+  .utn-class-card.is-two-lanes .utn-card-time,
+  .utn-class-card.is-compact-lane .utn-card-time {
+    font-size: 0.46rem;
+  }
+
+  .utn-class-card.is-two-lanes .utn-card-subject,
+  .utn-class-card.is-compact-lane .utn-card-subject {
+    font-size: 0.48rem;
+    -webkit-line-clamp: 1;
+  }
+
+  .utn-class-card.is-two-lanes .utn-card-comision,
+  .utn-class-card.is-compact-lane .utn-card-comision {
+    font-size: 0.64rem;
+  }
+
+  .utn-empty-box {
+    padding: 1rem;
+    max-width: 90%;
+  }
+
+  .utn-empty-box h3 {
+    font-size: 0.88rem;
+  }
+
+  .utn-empty-box p {
+    font-size: 0.75rem;
   }
 
   /* Modal Matar Materia en celular */

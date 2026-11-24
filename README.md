@@ -27,36 +27,71 @@ Aplicación web estática para gestionar el avance académico, verificar correla
 - **Detección de superposiciones horarias:** alerta automática cuando dos comisiones elegidas se superponen en el mismo día y horario (contemplando si pertenecen a cuatrimestres distintos).
 - Contador de materias inscriptas y carga horaria semanal (`hs/sem`), con acceso directo desde cada bloque de la grilla al selector de la materia.
 
-### 4. Persistencia local y Modo App (PWA Offline)
-- Todos los estados y comisiones seleccionadas se guardan automáticamente en el navegador mediante `localStorage`, sin necesidad de servidor ni base de datos.
-- **Progressive Web App (PWA):** incluye `manifest.json`, íconos y Service Worker (`sw.js`) para **instalarse en Android, iOS o PC** como aplicación independiente y funcionar **100% sin conexión a internet**.
+### 4. Pestaña Correlativas (Previas y a Futuro)
+- Selector por **`N° - Materia`** (1° a 5° año y electivas) para consultar qué materias necesitás tener **Regulares** y **Aprobadas** para cursarla, qué materias destraba **a futuro** (directas y en cadena), y navegar haciendo clic sobre cualquier materia.
+
+### 5. Persistencia local, APK Android (Capacitor) y Sincronización PC ↔ Celular
+- Todos los estados y comisiones seleccionadas se guardan automáticamente mediante `localStorage`.
+- **App Android (.apk con Capacitor):** el proyecto está empaquetado con **Capacitor** para generar un `.apk` nativo instalable en Android.
+- **Sincronización bidireccional PC ↔ Celular (Wi-Fi local):** mediante el servidor incluido (`sync-server.js`) y el botón **`🔄 Sincronizar`** en el encabezado, podés:
+  - **PC → Celular:** enviar tus materias, estados, comisiones y los horarios actualizados (`schedules.js`) a la app del celular.
+  - **Celular → PC:** enviar los cambios que hiciste en el celular de vuelta a tu PC.
 
 ---
 
 ## Uso en PC
 
-No requiere instalación de dependencias ni compilación.
-
 1. Descargá o cloná este proyecto.
-2. Abrí el archivo `index.html` directamente en tu navegador (o serví la carpeta con cualquier servidor estático local, por ejemplo Live Server o `python -m http.server 8080`).
-3. En la pestaña **Alumno**, marcá tus materias *Regulares* y *Aprobadas*.
-4. Pasá a la pestaña **Cursado** para elegir comisiones entre las materias habilitadas y visualizar tu horario semanal.
+2. Si solo querés usarla en la PC sin sincronizar con el celular, podés abrir `index.html` directamente en tu navegador.
+3. Si querés **sincronizar con el celular**, ejecutá en una terminal dentro de la carpeta del proyecto:
+   ```bash
+   npm run sync
+   ```
+   Abrí en tu PC el link `http://localhost:3456` (la consola también te mostrará la IP Wi-Fi local, por ejemplo `http://192.168.1.45:3456`, para cargar en el celular).
 
 ---
 
-## Cómo instalarla en el celular (PWA)
+## Cómo generar el APK de Android (Capacitor)
 
-Para que Chrome (Android) o Safari (iOS) permitan instalar una PWA y activar el modo offline, la página debe abrirse mediante **HTTPS** (o en red local). La forma más fácil y gratuita es:
+### Requisitos
+- **Node.js** instalado.
+- **Android Studio** (o Android SDK + Gradle) para compilar el `.apk`.
 
-### Opción A: Subirla gratis a internet (recomendado)
-1. **Netlify Drop (sin cuenta de Git):** entrá a [app.netlify.com/drop](https://app.netlify.com/drop) y arrastrá la carpeta `HorariosFacultad`. Te dará un link `https://...netlify.app` al instante.
-2. **GitHub Pages:** subí el repositorio a GitHub y en *Settings → Pages* activá el despliegue desde la rama `main`.
+### Pasos
+1. Instalá las dependencias del proyecto (una sola vez):
+   ```bash
+   npm install
+   ```
+2. Copiá los archivos web y sincronizá el proyecto Android:
+   ```bash
+   npm run cap:sync
+   ```
+3. Generá el APK:
+   - **Desde Android Studio (recomendado):**
+     ```bash
+     npm run android:open
+     ```
+     Luego en Android Studio: menú **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
+   - **Desde terminal (si tenés `ANDROID_HOME` configurado):**
+     ```bash
+     npm run android:apk
+     ```
+     El APK quedará generado en `android/app/build/outputs/apk/debug/app-debug.apk`.
 
-Una vez que abras ese link `https://...` en tu celular:
-- **En Android (Chrome):** tocá el botón **"📲 Instalar App"** que aparece arriba en la barra de estadísticas (o en el menú `⋮` de Chrome → *"Instalar aplicación"* / *"Agregar a la pantalla principal"*).
-- **En iPhone / iPad (Safari):** tocá el botón **Compartir** (cuadrado con flecha hacia arriba) → **"Agregar a inicio"**.
+---
 
-La app quedará en tu cajón de aplicaciones con el ícono **ISI 2023**, se abrirá a pantalla completa sin barra de direcciones y guardará todo tu progreso en el teléfono incluso **sin internet**.
+## Cómo sincronizar PC ↔ Celular
+
+1. Asegurate de que tu **PC y tu celular estén en el mismo Wi-Fi**.
+2. En la PC, ejecutá:
+   ```bash
+   npm run sync
+   ```
+3. Abrí la app en la PC (`http://localhost:3456`) y en tu celular (el APK instalado).
+4. En ambos dispositivos tocá **`🔄 Sincronizar`** en la barra superior:
+   - En el celular, ingresá la IP que muestra la PC (ej. `http://192.168.1.45:3456`) y tocá **Conectar**.
+   - **De PC a Celular:** en la PC tocá **⬆️ Enviar de la PC → Celular**; luego en el celular tocá **⬇️ Traer de la PC → Celular** (también actualiza `schedules.js` sin recompilar el APK).
+   - **De Celular a PC:** en el celular tocá **⬆️ Enviar del Celular → PC**; luego en la PC tocá **⬇️ Traer del Celular → PC**.
 
 ---
 
@@ -64,14 +99,16 @@ La app quedará en tu cajón de aplicaciones con el ícono **ISI 2023**, se abri
 
 ```text
 HorariosFacultad/
-├── index.html      # Estructura de la interfaz (encabezado, pestañas y grilla)
-├── styles.css      # Estilos generales, diseño de la grilla semanal y adaptación móvil
-├── app.js          # Plan 2023 (materias, correlativas, créditos), lógica, renderizado y registro PWA
-├── schedules.js    # Comisiones y bloques horarios por materia (HORARIOS_MATERIAS)
-├── manifest.json   # Metadatos de instalación PWA (nombre, colores, íconos)
-├── sw.js           # Service Worker para funcionamiento 100% offline
-├── icon.svg        # Ícono vectorial de la aplicación
-├── icon-192.png    # Ícono PWA 192x192 (Android / Apple Touch Icon)
-├── icon-512.png    # Ícono PWA 512x512 (Splash Screen Android)
-└── README.md       # Documentación del proyecto
+├── index.html              # Estructura de la interfaz (encabezado, pestañas, grilla y modales)
+├── styles.css              # Estilos generales, grilla semanal, pestaña correlativas y responsive
+├── app.js                  # Plan 2023, lógica, renderizado y cliente de sincronización PC ↔ Celular
+├── schedules.js            # Comisiones y bloques horarios por materia (HORARIOS_MATERIAS)
+├── sync-server.js          # Servidor local Node.js para sincronización bidireccional Wi-Fi
+├── capacitor.config.json   # Configuración de Capacitor para empaquetado Android
+├── package.json            # Scripts de sincronización y compilación Capacitor/Android
+├── scripts/
+│   └── prepare-www.js      # Copia los archivos web a www/ antes de sincronizar con Android
+├── data/                   # Archivos fuente de horarios (.xlsx) y régimen de correlativas (.pdf)
+├── android/                # Proyecto nativo Android generado por Capacitor
+└── README.md               # Documentación del proyecto
 ```
