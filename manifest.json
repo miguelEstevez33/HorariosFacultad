@@ -1,0 +1,33 @@
+{
+  "name": "Selector de Materias y Horarios — ISI Plan 2023 (UTN FRC)",
+  "short_name": "Horarios ISI",
+  "description": "Gestioná correlativas, progreso de carrera y armá tu horario semanal de Ingeniería en Sistemas (Plan 2023 - UTN FRC).",
+  "lang": "es-AR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#0b1120",
+  "categories": ["education", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

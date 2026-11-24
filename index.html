@@ -2,8 +2,17 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1120" />
+  <meta name="description" content="Selector de Materias, Correlativas y Horarios Semanales — Ingeniería en Sistemas de Información Plan 2023 (UTN FRC)." />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Horarios ISI" />
   <title>Selector de Materias y Horarios — ISI Plan 2023 (UTN FRC)</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -39,6 +48,9 @@
         </div>
         <button type="button" id="btn-kill-materia-header" class="btn btn-kill-materia btn-sm" style="display: none;" title="Ver qué materia inscripta te conviene dejar según cuántas materias futuras te traba">
           💀 Matar Materia
+        </button>
+        <button type="button" id="btn-install-pwa" class="btn btn-install-pwa btn-sm" style="display: none;" title="Instalar aplicación en tu celular o PC para usarla offline">
+          📲 Instalar App
         </button>
       </div>
     </div>
@@ -95,6 +107,16 @@
         </svg>
         <span>Pestaña Cursado (Selector de Cursos y Grilla Horaria)</span>
         <span class="badge-count" id="badge-habilitadas">0</span>
+      </button>
+      <button class="tab-btn" data-tab="correlativas" id="tab-btn-correlativas">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="18" cy="5" r="3"></circle>
+          <circle cx="6" cy="12" r="3"></circle>
+          <circle cx="18" cy="19" r="3"></circle>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+        </svg>
+        <span>Pestaña Correlativas (Previas y a Futuro)</span>
       </button>
     </div>
   </div>
@@ -250,6 +272,59 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PESTAÑA 3: CONSULTA DE CORRELATIVAS (PREVIAS Y A FUTURO) -->
+    <section id="tab-correlativas" class="tab-panel">
+      <div class="panel-toolbar correlativas-toolbar">
+        <div class="toolbar-left corr-selector-group">
+          <label for="select-materia-correlativas" class="corr-select-label">Seleccionar materia:</label>
+          <select id="select-materia-correlativas" class="select-control corr-materia-select"></select>
+        </div>
+
+        <div class="toolbar-right">
+          <label class="toggle-check" style="font-size: 0.83rem;">
+            <input type="checkbox" id="corr-include-electivas" checked />
+            <span>Incluir electivas en correlativas a futuro</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- RESUMEN DE LA MATERIA SELECCIONADA -->
+      <div id="corr-selected-header" class="corr-selected-header"></div>
+
+      <!-- DOS COLUMNAS: LO QUE NECESITÁS PARA CURSARLA vs. LO QUE DESTRABA A FUTURO -->
+      <div class="corr-columns-grid">
+        <!-- COLUMNA 1: REQUISITOS PREVIOS PARA CURSARLA -->
+        <div class="corr-column-panel corr-panel-previas">
+          <div class="corr-panel-header">
+            <div class="corr-panel-title-group">
+              <span class="corr-panel-icon previas-icon">⬅️</span>
+              <div>
+                <h2>Qué necesitás para cursarla</h2>
+                <p>Correlativas previas exigidas por el Plan 2023 (Regulares y Aprobadas)</p>
+              </div>
+            </div>
+            <span class="level-badge" id="corr-previas-count-badge">0</span>
+          </div>
+          <div id="corr-previas-content" class="corr-panel-body"></div>
+        </div>
+
+        <!-- COLUMNA 2: CORRELATIVAS A FUTURO (QUÉ DESTRABA) -->
+        <div class="corr-column-panel corr-panel-futuro">
+          <div class="corr-panel-header">
+            <div class="corr-panel-title-group">
+              <span class="corr-panel-icon futuro-icon">➡️</span>
+              <div>
+                <h2>Correlativas a futuro</h2>
+                <p>Materias que te piden tener esta materia regularizada o aprobada</p>
+              </div>
+            </div>
+            <span class="level-badge" id="corr-futuro-count-badge">0</span>
+          </div>
+          <div id="corr-futuro-content" class="corr-panel-body"></div>
         </div>
       </div>
     </section>
