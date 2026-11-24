@@ -83,6 +83,8 @@ let cursosSeleccionados = loadFromStorage(STORAGE_KEY_CURSOS, {});
 if (Array.isArray(cursosSeleccionados)) {
   cursosSeleccionados = {};
 }
+// Orden en que se fueron seleccionando las materias para saber cuál estaba antes y cuál es la nueva en caso de choque
+let ordenCursosSeleccionados = Object.keys(cursosSeleccionados);
 
 let currentCuatFilter = "all"; // "all" | "1C" | "2C"
 // Materia activa en el selector para previsualizar dónde se pueden plantar sus comisiones
@@ -169,11 +171,14 @@ function setEstadoMateria(id, nuevoEstado) {
 function selectComisionMateria(materiaId, optionId) {
   if (!optionId) {
     delete cursosSeleccionados[materiaId];
+    ordenCursosSeleccionados = ordenCursosSeleccionados.filter(id => id !== materiaId);
     if (estadosAlumno[materiaId] === "cursando") {
       delete estadosAlumno[materiaId];
     }
   } else {
     cursosSeleccionados[materiaId] = optionId;
+    ordenCursosSeleccionados = ordenCursosSeleccionados.filter(id => id !== materiaId);
+    ordenCursosSeleccionados.push(materiaId);
     estadosAlumno[materiaId] = "cursando";
   }
   saveToStorage();
@@ -787,12 +792,20 @@ function renderUtnCalendar() {
 
   const daysOrder = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
-  // 1) Recolectar todos los bloques de las comisiones ya plantadas (inscriptas)
+  // 1) Recolectar todos los bloques de las comisiones ya plantadas (inscriptas) respetando el orden de selección
+  for (const mId of Object.keys(cursosSeleccionados)) {
+    if (!ordenCursosSeleccionados.includes(mId)) {
+      ordenCursosSeleccionados.push(mId);
+    }
+  }
+  ordenCursosSeleccionados = ordenCursosSeleccionados.filter(mId => Boolean(cursosSeleccionados[mId]));
+
   const enrolledBlocks = [];
   let totalMaterias = 0;
   let totalHoras = 0;
 
-  for (const [mId, optId] of Object.entries(cursosSeleccionados)) {
+  for (const mId of ordenCursosSeleccionados) {
+    const optId = cursosSeleccionados[mId];
     const materia = MATERIAS_MAP[mId];
     if (!materia) continue;
     const opciones = getOpcionesComision(mId);
@@ -819,6 +832,9 @@ function renderUtnCalendar() {
         startMin: timeToMinutes(b.inicio),
         endMin: timeToMinutes(b.fin),
         conflict: false,
+        isConflictOverlay: false,
+        sameStartConflict: false,
+        sameEndConflict: false,
         isPreview: false
       });
     }
@@ -827,7 +843,8 @@ function renderUtnCalendar() {
   summaryPill.textContent = `${totalMaterias} ${totalMaterias === 1 ? "materia inscripta" : "materias inscriptas"} (${totalHoras} hs/sem)`;
   btnClear.disabled = Object.keys(cursosSeleccionados).length === 0;
 
-  // Detectar superposiciones horarias entre materias ya inscriptas
+  // Detectar superposiciones horarias entre materias ya inscriptas:
+  // La primera materia seleccionada queda en azul por debajo y la materia nueva aparece por encima en rojo transparente
   const conflictsList = [];
   for (let i = 0; i < enrolledBlocks.length; i++) {
     for (let j = i + 1; j < enrolledBlocks.length; j++) {
@@ -838,10 +855,12 @@ function renderUtnCalendar() {
           (a.periodo === "1° Cuat." && b.periodo === "2° Cuat.") ||
           (a.periodo === "2° Cuat." && b.periodo === "1° Cuat.");
         if (!disjointCuat && a.startMin < b.endMin && b.startMin < a.endMin) {
-          a.conflict = true;
           b.conflict = true;
+          b.isConflictOverlay = true;
+          if (Math.abs(b.startMin - a.startMin) < 20) b.sameStartConflict = true;
+          if (Math.abs(b.endMin - a.endMin) < 20) b.sameEndConflict = true;
           conflictsList.push(
-            `${a.dia}: <strong>${a.materiaNombre} (${a.comision})</strong> se superpone con <strong>${b.materiaNombre} (${b.comision})</strong> (${a.inicio}-${a.fin} vs ${b.inicio}-${b.fin})`
+            `${a.dia}: <strong>${b.materiaNombre} (${b.comision})</strong> se superpone sobre <strong>${a.materiaNombre} (${a.comision})</strong> (${b.inicio}-${b.fin} vs ${a.inicio}-${a.fin})`
           );
         }
       }
@@ -850,7 +869,8 @@ function renderUtnCalendar() {
 
   // 2) Si hay una materia seleccionada en el selector de la izquierda (activePreviewMateriaId),
   // generar los bloques de vista previa ("dónde se va a plantar") para sus comisiones.
-  // Si una comisión choca con otra materia ya plantada en ese día y horario, se marca en ROJO (conflict = true).
+  // Si una comisión choca con otra materia ya seleccionada, la materia seleccionada permanece AZUL por debajo
+  // y la materia nueva aparece por encima en formato TRANSPARENTE y ROJO.
   const previewBlocks = [];
   let previewMateriaObj = null;
 
@@ -876,6 +896,8 @@ function renderUtnCalendar() {
         const bStart = timeToMinutes(b.inicio);
         const bEnd = timeToMinutes(b.fin);
         let blockConflictsWithOther = false;
+        let sameStartConflict = false;
+        let sameEndConflict = false;
         const conflictingNames = [];
 
         for (const eb of enrolledBlocks) {
@@ -886,9 +908,9 @@ function renderUtnCalendar() {
             (opt.periodo === "2° Cuat." && eb.periodo === "1° Cuat.");
           if (!disjointCuat && bStart < eb.endMin && eb.startMin < bEnd) {
             blockConflictsWithOther = true;
+            if (Math.abs(bStart - eb.startMin) < 20) sameStartConflict = true;
+            if (Math.abs(bEnd - eb.endMin) < 20) sameEndConflict = true;
             conflictingNames.push(`${eb.materiaNombre} (${eb.comision})`);
-            // También marcamos en rojo el bloque plantado en ese horario y día para que resalte el choque
-            eb.conflictWithPreview = true;
           }
         }
 
@@ -905,6 +927,8 @@ function renderUtnCalendar() {
           endMin: bEnd,
           conflict: blockConflictsWithOther || optionConflicts,
           blockDirectConflict: blockConflictsWithOther,
+          sameStartConflict,
+          sameEndConflict,
           conflictingNames,
           isPreview: true
         });
@@ -963,7 +987,17 @@ function renderUtnCalendar() {
 
   let colsHtml = "";
   for (const dayName of daysOrder) {
-    const dayBlocks = computeColumnLanes(allBlocks.filter(b => b.dia === dayName));
+    // Calculamos los carriles de la materia seleccionada (azul, base) por separado de la materia nueva / en conflicto (por encima)
+    // para que la materia nueva que hace conflicto aparezca directamente POR ENCIMA de la materia seleccionada y se vean ambas.
+    const baseDayBlocks = computeColumnLanes(
+      enrolledBlocks.filter(b => b.dia === dayName && !b.isConflictOverlay)
+    );
+    const overlayDayBlocks = computeColumnLanes([
+      ...enrolledBlocks.filter(b => b.dia === dayName && b.isConflictOverlay),
+      ...previewBlocks.filter(b => b.dia === dayName)
+    ]);
+    const dayBlocks = [...baseDayBlocks, ...overlayDayBlocks];
+
     const cardsHtml = dayBlocks
       .map(b => {
         const topPct = ((b.startMin - minMin) / totalRange) * 100;
@@ -977,11 +1011,13 @@ function renderUtnCalendar() {
         const isTwoLanes = totalLanes === 2;
         const isCompactLane = totalLanes >= 3;
 
-        const isRedConflict = b.conflict || b.conflictWithPreview;
+        const isRedConflict = Boolean(b.conflict);
         const cardClasses = [
           "utn-class-card",
           b.isPreview ? "is-preview-card" : "is-enrolled-card",
           isRedConflict ? "has-conflict" : "",
+          isRedConflict && b.sameStartConflict ? "has-same-start-conflict" : "",
+          isRedConflict && b.sameEndConflict ? "has-same-end-conflict" : "",
           isTwoLanes ? "is-two-lanes" : "",
           isCompactLane ? "is-compact-lane" : ""
         ]
