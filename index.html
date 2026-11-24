@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="src/styles/main.css" />
 </head>
 <body>
   <header class="app-header">
@@ -410,7 +410,25 @@
     </div>
   </div>
 
-  <script src="schedules.js"></script>
-  <script src="app.js"></script>
+  <!-- Datos -->
+  <script src="src/data/schedules.js"></script>
+  <script src="src/data/materias.js"></script>
+
+  <!-- Estado y utilidades -->
+  <script src="src/state/store.js"></script>
+  <script src="src/utils/correlativas.js"></script>
+  <script src="src/utils/schedule.js"></script>
+
+  <!-- Componentes -->
+  <script src="src/components/HeaderStats.js"></script>
+  <script src="src/components/AlumnoTab.js"></script>
+  <script src="src/components/CursadoPicker.js"></script>
+  <script src="src/components/UtnCalendar.js"></script>
+  <script src="src/components/CorrelativasTab.js"></script>
+  <script src="src/components/KillMateriaModal.js"></script>
+  <script src="src/components/SyncModal.js"></script>
+
+  <!-- Punto de entrada -->
+  <script src="src/main.js"></script>
 </body>
 </html>

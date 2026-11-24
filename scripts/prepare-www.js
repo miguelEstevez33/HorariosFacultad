@@ -3,18 +3,37 @@ const path = require("path");
 
 const rootDir = path.resolve(__dirname, "..");
 const wwwDir = path.join(rootDir, "www");
-const filesToCopy = ["index.html", "styles.css", "app.js", "schedules.js"];
 
-if (!fs.existsSync(wwwDir)) {
-  fs.mkdirSync(wwwDir, { recursive: true });
+// Limpiar carpeta www/ antes de copiar para evitar archivos obsoletos
+if (fs.existsSync(wwwDir)) {
+  fs.rmSync(wwwDir, { recursive: true, force: true });
 }
+fs.mkdirSync(wwwDir, { recursive: true });
 
-for (const file of filesToCopy) {
-  const src = path.join(rootDir, file);
-  const dest = path.join(wwwDir, file);
-  if (fs.existsSync(src)) {
+let copiedCount = 0;
+
+function copyRecursive(src, dest) {
+  const stat = fs.statSync(src);
+  if (stat.isDirectory()) {
+    fs.mkdirSync(dest, { recursive: true });
+    for (const entry of fs.readdirSync(src)) {
+      copyRecursive(path.join(src, entry), path.join(dest, entry));
+    }
+  } else {
     fs.copyFileSync(src, dest);
+    copiedCount++;
   }
 }
 
-console.log(`Carpeta www/ actualizada con ${filesToCopy.length} archivos.`);
+const indexSrc = path.join(rootDir, "index.html");
+if (fs.existsSync(indexSrc)) {
+  fs.copyFileSync(indexSrc, path.join(wwwDir, "index.html"));
+  copiedCount++;
+}
+
+const srcDir = path.join(rootDir, "src");
+if (fs.existsSync(srcDir)) {
+  copyRecursive(srcDir, path.join(wwwDir, "src"));
+}
+
+console.log(`Carpeta www/ actualizada con ${copiedCount} archivos (index.html + src/).`);

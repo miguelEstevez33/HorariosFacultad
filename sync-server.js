@@ -55,7 +55,7 @@ function writeSyncData(data) {
 }
 
 function loadHorariosFromSchedulesJs() {
-  const schedulesPath = path.join(ROOT_DIR, "schedules.js");
+  const schedulesPath = path.join(ROOT_DIR, "src", "data", "schedules.js");
   try {
     if (!fs.existsSync(schedulesPath)) return null;
     const code = fs.readFileSync(schedulesPath, "utf-8");

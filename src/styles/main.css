@@ -1,0 +1,9 @@
+/* Punto de entrada principal de estilos — orden de cascada preservado */
+@import url("./base.css");
+@import url("./header.css");
+@import url("./alumno.css");
+@import url("./cursado-picker.css");
+@import url("./calendar.css");
+@import url("./modals.css");
+@import url("./correlativas.css");
+@import url("./responsive.css");

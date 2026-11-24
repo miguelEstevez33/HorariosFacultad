@@ -1,0 +1,238 @@
+/* Header */
+.app-header {
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 0;
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.brand-badge {
+  background: linear-gradient(135deg, #2b7bb9, #1d5a8a);
+  color: white;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.03em;
+}
+
+.brand h1 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.subtitle {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.stats-bar {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+.stat-pill .stat-value {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.stat-aprobada {
+  border-color: var(--aprobado-border);
+  background: var(--aprobado-bg);
+  color: #6ee7b7;
+}
+
+.stat-regular {
+  border-color: var(--regular-border);
+  background: var(--regular-bg);
+  color: #fcd34d;
+}
+
+.stat-cursando {
+  border-color: var(--cursando-border);
+  background: var(--cursando-bg);
+  color: #7dd3fc;
+}
+
+.stat-creditos {
+  border-color: rgba(168, 85, 247, 0.4);
+  background: rgba(168, 85, 247, 0.14);
+  color: #d8b4fe;
+}
+
+/* Barra de progreso de carrera */
+.career-progress-wrapper {
+  margin-top: 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.career-progress-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 0.9rem;
+}
+
+@media (max-width: 860px) {
+  .career-progress-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.progress-card {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.progress-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.progress-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+}
+
+.progress-degree-title {
+  font-size: 0.83rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.progress-detail-text {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.progress-pct-badge {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.progress-pct-badge.pct-analista {
+  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.progress-track {
+  width: 100%;
+  height: 9px;
+  background: var(--bg);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.progress-fill-ing {
+  background: linear-gradient(90deg, #10b981, #34d399);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.45);
+}
+
+.progress-fill-ana {
+  background: linear-gradient(90deg, #2563eb, #38bdf8);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+}
+
+/* Tabs Navigation */
+.tabs-bar {
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.tabs-container {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 1.25rem;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.tab-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tab-btn.active {
+  color: #60a5fa;
+  border-bottom-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.tab-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.badge-count {
+  background: #2b7bb9;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+}

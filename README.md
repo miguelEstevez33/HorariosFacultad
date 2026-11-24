@@ -108,16 +108,41 @@ Tenés dos formas de instalar la aplicación en tu celular:
 
 ```text
 HorariosFacultad/
-├── index.html              # Estructura de la interfaz (encabezado, pestañas, grilla y modales)
-├── styles.css              # Estilos generales, grilla semanal, pestaña correlativas y responsive
-├── app.js                  # Plan 2023, lógica, renderizado y cliente de sincronización PC ↔ Celular
-├── schedules.js            # Comisiones y bloques horarios por materia (HORARIOS_MATERIAS)
-├── sync-server.js          # Servidor local Node.js para sincronización bidireccional Wi-Fi
-├── capacitor.config.json   # Configuración de Capacitor para empaquetado Android
-├── package.json            # Scripts de sincronización y compilación Capacitor/Android
+├── index.html                  # Estructura HTML (encabezado, pestañas, grilla y modales)
+├── sync-server.js              # Servidor local Node.js para sincronización bidireccional Wi-Fi
+├── capacitor.config.json       # Configuración de Capacitor para empaquetado Android
+├── package.json                # Scripts de sincronización y compilación Capacitor/Android
+├── src/
+│   ├── main.js                 # Punto de entrada: navegación por pestañas y renderizado global
+│   ├── data/
+│   │   ├── materias.js         # Plan 2023: definición de materias y correlativas (MATERIAS)
+│   │   └── schedules.js        # Comisiones y bloques horarios por materia (HORARIOS_MATERIAS)
+│   ├── state/
+│   │   └── store.js            # Estado global, persistencia en localStorage y mutaciones
+│   ├── utils/
+│   │   ├── correlativas.js     # Lógica de habilitación, cadenas previas/futuras e impacto
+│   │   └── schedule.js         # Formateo, fusión de bloques, conflictos y carriles de grilla
+│   ├── components/
+│   │   ├── HeaderStats.js      # Contadores superiores y barras de progreso de carrera
+│   │   ├── AlumnoTab.js        # Pestaña Alumno (listado por nivel, tarjetas y filtros)
+│   │   ├── CursadoPicker.js    # Panel selector de materias y chips de comisiones
+│   │   ├── UtnCalendar.js      # Grilla horaria semanal estilo Autogestión UTN
+│   │   ├── CorrelativasTab.js  # Pestaña Correlativas (previas y a futuro)
+│   │   ├── KillMateriaModal.js # Modal "Matar Materia" (ranking de impacto)
+│   │   └── SyncModal.js        # Modal y cliente de sincronización PC ↔ Celular
+│   └── styles/
+│       ├── main.css            # Punto de entrada CSS (importa todos los módulos)
+│       ├── base.css            # Variables CSS, reset, tipografía, botones y controles base
+│       ├── header.css          # Encabezado, estadísticas, progreso y barra de pestañas
+│       ├── alumno.css          # Estilos de la Pestaña Alumno
+│       ├── cursado-picker.css  # Estilos del selector de materias y comisiones
+│       ├── calendar.css        # Estilos de la barra de horario y grilla UTN
+│       ├── correlativas.css    # Estilos de la Pestaña Correlativas
+│       ├── modals.css          # Estilos de los modales (Matar Materia y Sincronización)
+│       └── responsive.css      # Adaptación responsive para móviles y Capacitor
 ├── scripts/
-│   └── prepare-www.js      # Copia los archivos web a www/ antes de sincronizar con Android
-├── data/                   # Archivos fuente de horarios (.xlsx) y régimen de correlativas (.pdf)
-├── android/                # Proyecto nativo Android generado por Capacitor
-└── README.md               # Documentación del proyecto
+│   └── prepare-www.js          # Copia index.html y src/ a www/ antes de sincronizar con Android
+├── data/                       # Archivo fuente del régimen de correlativas (.pdf)
+├── android/                    # Proyecto nativo Android generado por Capacitor
+└── README.md                   # Documentación del proyecto
 ```

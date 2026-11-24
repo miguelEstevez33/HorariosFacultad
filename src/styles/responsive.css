@@ -1,0 +1,354 @@
+/* =========================================================
+   ADAPTACIÓN RESPONSIVE / CELULARES & PWA STANDALONE
+   ========================================================= */
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.utn-calendar-wrapper {
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 1080px) {
+  /* Evitar que el panel de materias tape la grilla cuando pasa a 1 columna */
+  .courses-picker-panel {
+    position: static;
+    max-height: 390px;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 0.85rem;
+  }
+
+  .app-header {
+    padding: 0.8rem 0;
+  }
+
+  .header-inner {
+    gap: 0.85rem;
+  }
+
+  .brand h1 {
+    font-size: 1.02rem;
+    line-height: 1.25;
+  }
+
+  .subtitle {
+    font-size: 0.76rem;
+  }
+
+  .stats-bar {
+    width: 100%;
+    gap: 0.45rem;
+  }
+
+  .stat-pill {
+    flex: 1 1 calc(50% - 0.45rem);
+    justify-content: space-between;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.76rem;
+  }
+
+  .btn-sync-header {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Pestañas adaptadas a ancho móvil */
+  .tabs-container {
+    gap: 0.15rem;
+  }
+
+  .tab-btn {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    padding: 0.6rem 0.3rem;
+    font-size: 0.72rem;
+    line-height: 1.2;
+    text-align: center;
+    gap: 0.25rem;
+  }
+
+  .tab-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  /* Barra de herramientas Pestaña Alumno */
+  .panel-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.75rem;
+    gap: 0.75rem;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+  }
+
+  .search-box {
+    min-width: 100%;
+    width: 100%;
+  }
+
+  .filter-group {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .quick-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem;
+  }
+
+  .quick-label {
+    grid-column: 1 / -1;
+  }
+
+  .info-banner {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.75rem 0.9rem;
+    gap: 0.65rem;
+  }
+
+  .info-banner .btn {
+    width: 100%;
+  }
+
+  .subjects-grid {
+    padding: 0.75rem;
+    gap: 0.7rem;
+  }
+
+  /* Barra de herramientas Pestaña Cursado */
+  .schedule-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.75rem;
+    gap: 0.65rem;
+  }
+
+  .schedule-toolbar-left,
+  .schedule-toolbar-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .schedule-toolbar-right {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+  }
+
+  .schedule-toolbar-right .enrolled-summary {
+    grid-column: 1 / -1;
+  }
+
+  .cuat-segmented {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .cuat-btn {
+    text-align: center;
+    padding: 0.4rem 0.2rem;
+    font-size: 0.72rem;
+  }
+
+  /* Grilla horaria ajustada al 100% del ancho de pantalla del celular (sin deslizar horizontalmente) */
+  .utn-calendar-wrapper {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .utn-calendar {
+    min-width: 100%;
+    width: 100%;
+  }
+
+  .utn-cal-header,
+  .utn-cal-body {
+    grid-template-columns: 34px repeat(6, minmax(0, 1fr));
+  }
+
+  .utn-cal-header {
+    font-size: 0.65rem;
+    height: 32px;
+  }
+
+  .utn-time-col-header {
+    font-size: 0.6rem;
+    padding: 0.25rem 0.1rem;
+  }
+
+  .utn-day-col-header {
+    padding: 0.25rem 0.1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .utn-cal-body,
+  .utn-time-column,
+  .utn-day-column {
+    min-height: 620px;
+  }
+
+  .utn-time-slot {
+    font-size: 0.58rem;
+    padding-top: 2px;
+  }
+
+  .utn-class-card {
+    left: 1.5px;
+    right: 1.5px;
+    padding: 2px 2px 2px 2px;
+    border-radius: 4px;
+    border-top-width: 3px;
+  }
+
+  .utn-class-card.is-enrolled-card {
+    border-width: 1.5px;
+    border-top-width: 3.5px;
+  }
+
+  .utn-card-time {
+    font-size: 0.52rem;
+  }
+
+  .utn-card-subject {
+    font-size: 0.55rem;
+    line-height: 1.05;
+    -webkit-line-clamp: 2;
+    word-break: break-word;
+  }
+
+  .utn-card-status {
+    display: none;
+  }
+
+  .utn-card-comision {
+    font-size: 0.76rem;
+  }
+
+  .utn-class-card.is-two-lanes .utn-card-time,
+  .utn-class-card.is-compact-lane .utn-card-time {
+    font-size: 0.46rem;
+  }
+
+  .utn-class-card.is-two-lanes .utn-card-subject,
+  .utn-class-card.is-compact-lane .utn-card-subject {
+    font-size: 0.48rem;
+    -webkit-line-clamp: 1;
+  }
+
+  .utn-class-card.is-two-lanes .utn-card-comision,
+  .utn-class-card.is-compact-lane .utn-card-comision {
+    font-size: 0.64rem;
+  }
+
+  .utn-empty-box {
+    padding: 1rem;
+    max-width: 90%;
+  }
+
+  .utn-empty-box h3 {
+    font-size: 0.88rem;
+  }
+
+  .utn-empty-box p {
+    font-size: 0.75rem;
+  }
+
+  /* Modal Matar Materia en celular */
+  .kill-modal-backdrop {
+    padding: 0.6rem;
+  }
+
+  .kill-modal-dialog {
+    max-height: 92vh;
+  }
+
+  .kill-modal-header {
+    padding: 0.85rem 1rem;
+  }
+
+  .kill-modal-controls {
+    padding: 0.6rem 1rem;
+  }
+
+  .kill-materia-list {
+    padding: 0.75rem;
+  }
+
+  .kill-item-main {
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .kill-item-actions {
+    width: 100%;
+    align-self: stretch;
+  }
+
+  .kill-item-actions .btn {
+    width: 100%;
+  }
+
+  /* Pestaña Correlativas en celular */
+  .corr-materia-select {
+    min-width: 100%;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .corr-selected-card {
+    padding: 0.85rem 0.95rem;
+  }
+
+  .corr-selected-actions {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .corr-panel-body {
+    padding: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .status-btn {
+    font-size: 0.7rem;
+    padding: 0.42rem 0.1rem;
+  }
+
+  .comision-chip {
+    padding: 0.32rem 0.55rem;
+    font-size: 0.76rem;
+  }
+}

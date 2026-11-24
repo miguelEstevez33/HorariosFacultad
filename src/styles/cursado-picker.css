@@ -1,0 +1,341 @@
+/* =========================================================
+   PESTAÑA 2: CURSADO WORKSPACE (SELECTOR + GRILLA HORARIA UTN)
+   ========================================================= */
+.cursado-workspace {
+  display: grid;
+  grid-template-columns: 350px minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 1080px) {
+  .cursado-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Panel izquierdo: Selector de comisión por materia */
+.courses-picker-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 125px);
+  position: sticky;
+  top: 68px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.picker-header {
+  padding: 0.9rem 1rem;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+}
+
+.picker-header h2 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.picker-header p {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.picker-filters {
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.picker-filter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.toggle-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-check input {
+  accent-color: var(--primary);
+}
+
+.picker-list {
+  overflow-y: auto;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.picker-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.picker-item:hover:not(.locked) {
+  border-color: #475569;
+}
+
+.picker-item.enrolled {
+  border-color: #2b7bb9;
+  background: rgba(43, 123, 185, 0.12);
+}
+
+.picker-item.previewing {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.14);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.picker-item.locked {
+  opacity: 0.55;
+}
+
+.picker-radio-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.picker-item.locked .picker-radio-row {
+  cursor: default;
+}
+
+.picker-subject-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.picker-title-line {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.picker-item-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.planted-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.08rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #0284c7;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+}
+
+.picker-submeta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.73rem;
+  color: var(--text-muted);
+}
+
+.planted-schedule-text {
+  color: #7dd3fc;
+  font-weight: 500;
+}
+
+/* Botón circular de selección de materia (formato boceto: "Algebra  (•)") */
+.picker-radio-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #94a3b8;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.picker-radio-row:hover .picker-radio-btn {
+  border-color: #38bdf8;
+}
+
+.picker-radio-btn.has-planted {
+  border-color: #38bdf8;
+}
+
+.picker-radio-btn.active {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.18);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.45);
+}
+
+.picker-radio-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: transparent;
+  transition: all 0.15s ease;
+  transform: scale(0.4);
+}
+
+.picker-radio-btn.has-planted .picker-radio-dot {
+  background: #2b7bb9;
+  transform: scale(0.75);
+}
+
+.picker-radio-btn.active .picker-radio-dot {
+  background: #38bdf8;
+  transform: scale(1);
+}
+
+.picker-radio-circle.disabled {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px dashed #475569;
+  flex-shrink: 0;
+}
+
+/* Panel desplegable con chips de comisiones (1K1, 1K2, 1K3...) */
+.picker-preview-panel {
+  margin-top: 0.3rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.picker-preview-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: #bae6fd;
+}
+
+.btn-unplant-inline {
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+  font-size: 0.69rem;
+  font-weight: 600;
+  padding: 0.14rem 0.45rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-unplant-inline:hover {
+  background: rgba(239, 68, 68, 0.28);
+}
+
+.comisiones-chips-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.32rem;
+}
+
+.comision-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  padding: 0.22rem 0.48rem;
+  border-radius: 5px;
+  border: 1px solid #334155;
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.12s ease;
+}
+
+.comision-chip:hover {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+
+.comision-chip .chip-period {
+  font-size: 0.64rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.comision-chip.chip-selected {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.comision-chip.chip-selected .chip-period {
+  color: #e0f2fe;
+}
+
+.comision-chip.chip-conflict {
+  border-color: rgba(239, 68, 68, 0.65);
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+}
+
+.comision-chip.chip-conflict .chip-period {
+  color: #fecaca;
+}
+
+.btn-toggle-extra-com {
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  color: #93c5fd;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.1rem 0;
+  font-family: inherit;
+  text-decoration: underline;
+}
+
+.btn-toggle-extra-com:hover {
+  color: #bae6fd;
+}
+
+.picker-locked-reason {
+  font-size: 0.73rem;
+  color: #fca5a5;
+}
