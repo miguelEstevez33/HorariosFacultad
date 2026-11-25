@@ -42,12 +42,17 @@ Aplicación web estática para gestionar el avance académico, verificar correla
 ## Uso en PC
 
 1. Descargá o cloná este proyecto.
-2. Si solo querés usarla en la PC sin sincronizar con el celular, podés abrir `index.html` directamente en tu navegador.
-3. Si querés **sincronizar con el celular**, ejecutá en una terminal dentro de la carpeta del proyecto:
+2. **App de escritorio (`.exe` para Windows):**
+   Podés compilar el ejecutable nativo con Electron (incluye el servidor de sincronización integrado, sin necesidad de abrir terminales):
    ```bash
-   npm run sync
+   npm install
+   npm run build:exe
    ```
-   Abrí en tu PC el link `http://localhost:3456` (la consola también te mostrará la IP Wi-Fi local, por ejemplo `http://192.168.1.45:3456`, para cargar en el celular).
+   Esto genera:
+   - `dist/Horarios ISI Setup 1.0.0.exe`: instalador de Windows (crea acceso directo en Escritorio y Menú Inicio, listo para anclar a la barra de tareas).
+   - `dist/win-unpacked/Horarios ISI.exe`: ejecutable directo sin instalación (clic derecho → **Anclar a la barra de tareas**).
+   También podés abrirla en modo desarrollo con `npm run electron`.
+3. **Uso desde navegador:** si solo querés usarla sin compilar el `.exe`, podés abrir `app/index.html` directamente en tu navegador, o ejecutar `npm run sync` y abrir `http://localhost:3456` para sincronizar con el celular.
 
 ---
 
@@ -108,41 +113,38 @@ Tenés dos formas de instalar la aplicación en tu celular:
 
 ```text
 HorariosFacultad/
-├── index.html                  # Estructura HTML (encabezado, pestañas, grilla y modales)
-├── sync-server.js              # Servidor local Node.js para sincronización bidireccional Wi-Fi
-├── capacitor.config.json       # Configuración de Capacitor para empaquetado Android
-├── package.json                # Scripts de sincronización y compilación Capacitor/Android
-├── src/
-│   ├── main.js                 # Punto de entrada: navegación por pestañas y renderizado global
-│   ├── data/
-│   │   ├── materias.js         # Plan 2023: definición de materias y correlativas (MATERIAS)
-│   │   └── schedules.js        # Comisiones y bloques horarios por materia (HORARIOS_MATERIAS)
-│   ├── state/
-│   │   └── store.js            # Estado global, persistencia en localStorage y mutaciones
-│   ├── utils/
-│   │   ├── correlativas.js     # Lógica de habilitación, cadenas previas/futuras e impacto
-│   │   └── schedule.js         # Formateo, fusión de bloques, conflictos y carriles de grilla
-│   ├── components/
-│   │   ├── HeaderStats.js      # Contadores superiores y barras de progreso de carrera
-│   │   ├── AlumnoTab.js        # Pestaña Alumno (listado por nivel, tarjetas y filtros)
-│   │   ├── CursadoPicker.js    # Panel selector de materias y chips de comisiones
-│   │   ├── UtnCalendar.js      # Grilla horaria semanal estilo Autogestión UTN
-│   │   ├── CorrelativasTab.js  # Pestaña Correlativas (previas y a futuro)
-│   │   ├── KillMateriaModal.js # Modal "Matar Materia" (ranking de impacto)
-│   │   └── SyncModal.js        # Modal y cliente de sincronización PC ↔ Celular
-│   └── styles/
-│       ├── main.css            # Punto de entrada CSS (importa todos los módulos)
-│       ├── base.css            # Variables CSS, reset, tipografía, botones y controles base
-│       ├── header.css          # Encabezado, estadísticas, progreso y barra de pestañas
-│       ├── alumno.css          # Estilos de la Pestaña Alumno
-│       ├── cursado-picker.css  # Estilos del selector de materias y comisiones
-│       ├── calendar.css        # Estilos de la barra de horario y grilla UTN
-│       ├── correlativas.css    # Estilos de la Pestaña Correlativas
-│       ├── modals.css          # Estilos de los modales (Matar Materia y Sincronización)
-│       └── responsive.css      # Adaptación responsive para móviles y Capacitor
+├── app/                          # Fuente única de la interfaz web (usada por Web, Electron y Android)
+│   ├── index.html                # Estructura HTML (encabezado, pestañas, grilla y modales)
+│   └── src/
+│       ├── main.js               # Punto de entrada: navegación por pestañas y renderizado global
+│       ├── data/
+│       │   ├── materias.js       # Plan 2023: definición de materias y correlativas (MATERIAS)
+│       │   └── schedules.js      # Comisiones y bloques horarios por materia (HORARIOS_MATERIAS)
+│       ├── state/
+│       │   └── store.js          # Estado global, persistencia en localStorage y mutaciones
+│       ├── utils/
+│       │   ├── correlativas.js   # Lógica de habilitación, cadenas previas/futuras e impacto
+│       │   ├── exportSchedule.js # Exportación de la grilla horaria
+│       │   └── schedule.js       # Formateo, fusión de bloques, conflictos y carriles de grilla
+│       ├── components/
+│       │   ├── HeaderStats.js    # Contadores superiores y barras de progreso de carrera
+│       │   ├── AlumnoTab.js      # Pestaña Alumno (listado por nivel, tarjetas y filtros)
+│       │   ├── CursadoPicker.js  # Panel selector de materias y chips de comisiones
+│       │   ├── UtnCalendar.js    # Grilla horaria semanal estilo Autogestión UTN
+│       │   ├── CorrelativasTab.js# Pestaña Correlativas (previas y a futuro)
+│       │   ├── KillMateriaModal.js# Modal "Matar Materia" (ranking de impacto)
+│       │   └── SyncModal.js      # Modal y cliente de sincronización PC ↔ Celular
+│       └── styles/               # Estilos CSS modulares
+├── server/
+│   └── sync-server.js            # Servidor local Node.js para sincronización bidireccional Wi-Fi
+├── electron/
+│   └── main.js                   # Proceso principal de la app de escritorio (.exe)
+├── android/                      # Proyecto nativo Android generado por Capacitor (apunta a app/)
+├── build/                        # Íconos (icon.png, icon.ico) para el ejecutable de Windows
 ├── scripts/
-│   └── prepare-www.js          # Copia index.html y src/ a www/ antes de sincronizar con Android
-├── data/                       # Archivo fuente del régimen de correlativas (.pdf)
-├── android/                    # Proyecto nativo Android generado por Capacitor
-└── README.md                   # Documentación del proyecto
+│   └── generate-icon.js          # Generador de íconos para la app de escritorio
+├── data/                         # Archivo fuente del régimen de correlativas (.pdf)
+├── capacitor.config.json         # Configuración de Capacitor (webDir: "app")
+├── package.json                  # Scripts de escritorio (.exe), sincronización y Android (.apk)
+└── README.md                     # Documentación del proyecto
 ```

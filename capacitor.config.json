@@ -1,7 +1,7 @@
 {
   "appId": "com.utnfrc.horariosisi",
   "appName": "Horarios ISI",
-  "webDir": "www",
+  "webDir": "app",
   "server": {
     "androidScheme": "http",
     "cleartext": true

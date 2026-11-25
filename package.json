@@ -1,20 +1,62 @@
 {
   "name": "horarios-facultad-isi",
   "version": "1.0.0",
-  "description": "Selector de Materias, Correlativas y Horarios — ISI Plan 2023 (UTN FRC) con APK Capacitor y sincronización PC ↔ Celular",
+  "description": "Selector de Materias, Correlativas y Horarios — ISI Plan 2023 (UTN FRC) con APK Capacitor, app de escritorio (.exe) y sincronización PC ↔ Celular",
+  "main": "electron/main.js",
+  "author": "ISI Plan 2023 (UTN FRC)",
   "private": true,
   "scripts": {
-    "sync": "node sync-server.js",
-    "build:www": "node scripts/prepare-www.js",
-    "cap:sync": "npm run build:www && npx cap sync android",
+    "sync": "node server/sync-server.js",
+    "electron": "electron .",
+    "icon:gen": "node scripts/generate-icon.js",
+    "build:exe": "electron-builder --win",
+    "cap:sync": "npx cap sync android",
     "android:open": "npm run cap:sync && npx cap open android",
     "android:apk": "npm run cap:sync && cd android && gradlew.bat assembleDebug"
+  },
+  "build": {
+    "appId": "com.utnfrc.horarios.isi",
+    "productName": "Horarios ISI",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "app/**/*",
+      "server/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "build/icon.png"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Horarios ISI"
+    }
   },
   "dependencies": {
     "@capacitor/android": "^6.2.0",
     "@capacitor/core": "^6.2.0"
   },
   "devDependencies": {
-    "@capacitor/cli": "^6.2.0"
+    "@capacitor/cli": "^6.2.0",
+    "electron": "^45.5.0",
+    "electron-builder": "^26.18.0"
   }
 }
