@@ -9,7 +9,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow);
   overflow: hidden;
 }
 
@@ -54,7 +54,7 @@
   border: 1px solid var(--border);
   border-left: 3px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow);
   padding: 12px 16px;
   display: flex;
   flex-direction: column;
@@ -132,11 +132,10 @@
   border: 1px solid var(--border);
 }
 
-/* Override defensivo para el badge de comisión seteado inline en AlumnoTab.js (línea 22) */
-.subject-meta .meta-tag[style],
+/* Badge de comisión */
 .meta-tag.tag-comision {
-  background: var(--surface-alt) !important;
-  color: var(--text) !important;
+  background: var(--primary-soft);
+  color: var(--primary-text);
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 2px 8px;
@@ -210,14 +209,14 @@
 
 .status-btn:hover {
   color: var(--text);
-  background: rgba(128, 128, 128, 0.08);
+  background: var(--hover-tint);
 }
 
 .status-btn.active[data-state="none"] {
   background: var(--surface);
   color: var(--text);
   font-weight: 600;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow);
 }
 
 .status-btn.active[data-state="cursando"] {

@@ -10,9 +10,21 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="src/styles/main.css" />
   <script>
-    if (localStorage.getItem("horarios_theme") === "dark") {
-      document.documentElement.setAttribute("data-theme", "dark");
-    }
+    (function () {
+      var VALID = ["claro", "oscuro", "papel", "terminal", "alto-contraste", "pastel"];
+      var tema = null;
+      try {
+        var saved = localStorage.getItem("tema");
+        if (saved && VALID.indexOf(saved) !== -1) {
+          tema = saved;
+        }
+      } catch (e) {}
+      if (!tema) {
+        var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        tema = prefersDark ? "oscuro" : "claro";
+      }
+      document.documentElement.setAttribute("data-theme", tema);
+    })();
   </script>
 </head>
 <body>
@@ -49,9 +61,14 @@
         <button type="button" id="btn-open-sync" class="btn btn-sync-header btn-sm" title="Sincronizar materias y horarios entre PC y Celular">
           Sincronizar
         </button>
-        <button type="button" id="btn-toggle-theme" class="btn btn-theme-toggle btn-sm" aria-pressed="false" title="Alternar entre modo claro y modo oscuro">
-          Modo oscuro
-        </button>
+        <select id="theme-select" class="select-control select-sm theme-select" aria-label="Tema" title="Cambiar tema visual">
+          <option value="claro">Claro</option>
+          <option value="oscuro">Oscuro</option>
+          <option value="papel">Papel</option>
+          <option value="terminal">Terminal</option>
+          <option value="alto-contraste">Alto contraste</option>
+          <option value="pastel">Pastel</option>
+        </select>
       </div>
     </div>
 

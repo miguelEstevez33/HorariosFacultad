@@ -16,7 +16,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow);
   padding: 12px 16px;
 }
 
@@ -62,7 +62,7 @@
 
 .cuat-btn.active {
   background: var(--primary);
-  color: #ffffff;
+  color: var(--on-primary);
   font-weight: 600;
 }
 
@@ -91,11 +91,6 @@
   color: var(--text);
 }
 
-/* Override defensivo para color inline #fca5a5 en UtnCalendar.js (línea 188) */
-.conflict-banner.preview-active-banner strong[style] {
-  color: var(--danger) !important;
-}
-
 /* =========================================================
    TABLA DE HORARIOS SEMANAL (REFERENCIA VISUAL DE LA APP)
    ========================================================= */
@@ -103,8 +98,9 @@
   background: var(--surface);
   border-radius: var(--radius);
   overflow-x: auto;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow);
   border: 1px solid var(--border);
+  transition: background-color var(--transition), border-color var(--transition);
 }
 
 .utn-calendar {
@@ -113,25 +109,27 @@
   background: var(--surface);
   color: var(--text);
   user-select: none;
+  transition: background-color var(--transition), color var(--transition);
 }
 
-/* Encabezado azul sólido */
+/* Encabezado de la grilla */
 .utn-cal-header {
   display: grid;
   grid-template-columns: 68px repeat(6, 1fr);
-  background-color: var(--primary);
-  color: #ffffff;
+  background-color: var(--grid-header-bg);
+  color: var(--grid-header-text);
   height: 44px;
   align-items: center;
   text-align: center;
   font-weight: 600;
   font-size: 15px;
+  transition: background-color var(--transition), color var(--transition);
 }
 
 .utn-time-col-header {
   padding: 8px 4px;
   font-size: 13px;
-  border-right: 1px solid rgba(255, 255, 255, 0.22);
+  border-right: 1px solid var(--grid-header-divider);
 }
 
 .utn-day-col-header {
@@ -159,11 +157,12 @@
   flex: 1;
   width: 100%;
   position: relative;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--grid-line);
+  transition: background-color var(--transition), border-color var(--transition);
 }
 
 .utn-stripe-band:nth-child(even) {
-  background-color: var(--surface-alt);
+  background-color: var(--grid-row-alt);
 }
 
 .utn-stripe-band:nth-child(odd) {
@@ -176,8 +175,9 @@
   display: flex;
   flex-direction: column;
   min-height: 760px;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--grid-line);
   background: var(--bg);
+  transition: background-color var(--transition), border-color var(--transition);
 }
 
 .utn-time-slot {
@@ -195,7 +195,8 @@
   position: relative;
   z-index: 2;
   min-height: 760px;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--grid-line);
+  transition: border-color var(--transition);
 }
 
 .utn-day-column:last-child {
@@ -209,7 +210,7 @@
   right: 6px;
   background: var(--surface);
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
+  border: var(--border-width) solid var(--border);
   border-top: 3px solid var(--primary);
   padding: 4px 6px;
   display: flex;
@@ -217,16 +218,16 @@
   align-items: center;
   justify-content: space-between;
   overflow: hidden;
-  transition: border-color var(--transition), background-color var(--transition), opacity var(--transition);
+  transition: border-color var(--transition), background-color var(--transition), color var(--transition), opacity var(--transition);
   cursor: pointer;
   z-index: 4;
 }
 
-/* Materia inscripta: celeste suave con borde azul */
+/* Materia inscripta */
 .utn-class-card.is-enrolled-card {
-  background: var(--primary-soft);
-  border: 1px solid var(--primary);
-  border-top: 3px solid var(--primary);
+  background: var(--block-enrolled-bg);
+  border: var(--border-width) solid var(--block-enrolled-border);
+  border-top: 3px solid var(--block-enrolled-border);
   z-index: 4;
 }
 
@@ -251,35 +252,35 @@
 .utn-class-card:hover,
 .utn-class-card.is-hovered-option {
   border-color: var(--primary-hover);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow);
   z-index: 30 !important;
 }
 
-/* Tarjetas de vista previa */
+/* Tarjetas de vista previa (plantables) */
 .utn-class-card.is-preview-card {
-  border: 1px dashed var(--primary);
-  border-top: 3px solid var(--primary);
-  background: var(--surface);
+  border: var(--border-width) dashed var(--block-plantable-border);
+  border-top: 3px solid var(--block-plantable-border);
+  background: var(--block-plantable-bg);
   z-index: 6;
 }
 
 .utn-class-card.is-preview-card:hover,
 .utn-class-card.is-preview-card.is-hovered-option {
-  background: var(--primary-soft);
+  background: var(--block-enrolled-bg);
   border-style: solid;
-  border-color: var(--primary);
+  border-color: var(--block-plantable-border);
 }
 
 .utn-class-card.is-dimmed-preview {
   opacity: 0.4;
 }
 
-/* Solapamiento: bloque en conflicto en la mitad derecha (50%) con fondo --danger-soft y borde --danger
+/* Solapamiento: bloque en conflicto en la mitad derecha (50%) con fondo --block-conflict-bg y borde --block-conflict-border
    para que no pise el texto ni el código de comisión del bloque base */
 .utn-class-card.has-conflict {
-  border: 1.5px solid var(--danger) !important;
-  border-top: 3px solid var(--danger) !important;
-  background: var(--danger-soft) !important;
+  border: 1.5px solid var(--block-conflict-border) !important;
+  border-top: 3px solid var(--block-conflict-border) !important;
+  background: var(--block-conflict-bg) !important;
   z-index: 15;
 }
 
@@ -333,8 +334,8 @@
 
 .utn-class-card.has-conflict:hover,
 .utn-class-card.has-conflict.is-hovered-option {
-  background: var(--danger-soft) !important;
-  border-color: var(--danger) !important;
+  background: var(--block-conflict-bg) !important;
+  border-color: var(--block-conflict-border) !important;
 }
 
 .utn-class-card.has-conflict .utn-card-time,
@@ -451,7 +452,7 @@
   text-align: center;
   max-width: 440px;
   color: var(--text-muted);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow);
 }
 
 .utn-empty-box h3 {

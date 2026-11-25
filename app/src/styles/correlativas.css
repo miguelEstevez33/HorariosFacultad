@@ -30,7 +30,7 @@
   border: 1px solid var(--border);
   border-left: 3px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow);
   padding: 16px;
   display: flex;
   align-items: center;
@@ -68,7 +68,7 @@
 
 .corr-big-num {
   background: var(--primary);
-  color: #ffffff;
+  color: var(--on-primary);
   font-weight: 600;
   font-size: 12px;
   padding: 4px 8px;
@@ -142,7 +142,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -232,7 +232,7 @@
   border: 1px solid var(--border);
   border-left: 3px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow);
   padding: 12px 14px;
   display: flex;
   flex-direction: column;

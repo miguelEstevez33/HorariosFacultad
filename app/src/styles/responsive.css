@@ -59,7 +59,7 @@ body {
   }
 
   .btn-sync-header,
-  .btn-theme-toggle {
+  .theme-select {
     flex: 1 1 auto;
     justify-content: center;
   }

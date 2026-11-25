@@ -19,7 +19,7 @@
             <span class="subject-num">${m.numero}</span>
             <span class="subject-name">${m.nombre}</span>
             <div class="subject-meta">
-              ${objCom ? `<span class="meta-tag" style="background: rgba(56,189,248,0.2); color: #7dd3fc;">${objCom.comision}</span>` : ""}
+              ${objCom ? `<span class="meta-tag tag-comision" style="background: var(--primary-soft); color: var(--primary-text);">${objCom.comision}</span>` : ""}
               ${m.electiva ? `<span class="meta-tag tag-electiva">Electiva (${m.creditos} cr.)</span>` : ""}
               <span class="meta-tag" title="Modalidad">${m.modalidad}</span>
               <span class="meta-tag" title="Carga horaria semanal">${m.carga} hs</span>

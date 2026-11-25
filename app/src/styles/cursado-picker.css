@@ -19,7 +19,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -92,7 +92,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -301,11 +301,12 @@
 .comision-chip.chip-selected {
   background: var(--primary);
   border-color: var(--primary);
-  color: #ffffff;
+  color: var(--on-primary);
 }
 
 .comision-chip.chip-selected .chip-period {
-  color: var(--primary-soft);
+  color: var(--on-primary);
+  opacity: 0.85;
 }
 
 .comision-chip.chip-conflict {

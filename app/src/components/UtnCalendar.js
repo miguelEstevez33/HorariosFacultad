@@ -189,7 +189,7 @@
     } else if (previewMateriaObj) {
       conflictBanner.style.display = "block";
       conflictBanner.className = "conflict-banner preview-active-banner";
-      conflictBanner.innerHTML = `📍 Previsualizando dónde plantar <strong>${previewMateriaObj.nombre}</strong>: hacé clic en cualquier bloque (ej. <strong>1K1</strong>, <strong>1K2</strong>...) en la grilla para plantarla. Los bloques en <strong style="color:#fca5a5;">rojo</strong> indican que ya hay otra materia en ese día y horario.`;
+      conflictBanner.innerHTML = `📍 Previsualizando dónde plantar <strong>${previewMateriaObj.nombre}</strong>: hacé clic en cualquier bloque (ej. <strong>1K1</strong>, <strong>1K2</strong>...) en la grilla para plantarla. Los bloques en <strong style="color: var(--danger);">rojo</strong> indican que ya hay otra materia en ese día y horario.`;
     } else {
       conflictBanner.className = "conflict-banner";
       conflictBanner.style.display = "none";
