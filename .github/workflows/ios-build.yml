@@ -1,4 +1,3 @@
-
 name: iOS Build
 
 on:
@@ -10,35 +9,29 @@ on:
 jobs:
   build-ios:
     runs-on: macos-15
-    timeout-minutes: 25
-
+    timeout-minutes: 35
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-
       - name: Install dependencies
         run: npm ci
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - name: Run automated tests
         run: npm test
-
       - name: Check environment
         run: |
           node --version
           npm --version
           xcodebuild -version
           pod --version
-
       - name: Sync Capacitor iOS
         run: npx cap sync ios
-
       - name: Build iOS application
         run: |
           xcodebuild \
@@ -48,55 +41,59 @@ jobs:
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath ios-build \
-            CODE_SIGNING_ALLOWED=NO \
-            build
-
+            CODE_SIGNING_ALLOWED=NO build
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: HorariosFacultad-iOS
           path: ios-build/Build/Products/Debug-iphonesimulator/*.app
-
       - name: Start iPhone simulator
         timeout-minutes: 10
         run: |
           xcrun simctl list devices available
-
           UDID=$(xcrun simctl list devices available -j | jq -r '[.devices[][] | select(.name == "iPhone 16 Pro")][0].udid // empty')
-
           if [ -z "$UDID" ]; then
             echo "iPhone 16 Pro simulator not found"
             exit 1
           fi
-
           echo "SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
-
           xcrun simctl bootstatus "$UDID" -b
-
       - name: Install and launch application
         run: |
-          xcrun simctl install "$SIMULATOR_UDID" \
-            ios-build/Build/Products/Debug-iphonesimulator/App.app
-
-          xcrun simctl status_bar "$SIMULATOR_UDID" override \
-            --time "9:41" \
-            --batteryState discharging \
-            --batteryLevel 100
-
-          xcrun simctl launch "$SIMULATOR_UDID" \
-            com.utnfrc.horariosisi
-
+          xcrun simctl install "$SIMULATOR_UDID" ios-build/Build/Products/Debug-iphonesimulator/App.app
+          xcrun simctl status_bar "$SIMULATOR_UDID" override --time "9:41" --batteryState discharging --batteryLevel 100
+          xcrun simctl launch "$SIMULATOR_UDID" com.utnfrc.horariosisi
           sleep 15
-
       - name: Capture iPhone screenshot
         run: |
           mkdir -p screenshots
-
-          xcrun simctl io "$SIMULATOR_UDID" screenshot \
-            screenshots/horarios-iphone.png
-
+          xcrun simctl io "$SIMULATOR_UDID" screenshot screenshots/horarios-iphone.png
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
         with:
           name: HorariosFacultad-iOS-Screenshots
           path: screenshots/
+      - name: Configure UI test target
+        run: |
+          ruby -e 'require "xcodeproj"' || gem install xcodeproj --no-document
+          ruby scripts/setup-ios-ui-tests.rb
+          xcodebuild -list -workspace ios/App/App.xcworkspace
+      - name: Run iOS UI tests
+        timeout-minutes: 15
+        run: |
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme AppUITests \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_UDID" \
+            -derivedDataPath ios-ui-build \
+            -resultBundlePath ios-ui-results.xcresult \
+            -parallel-testing-enabled NO \
+            CODE_SIGNING_ALLOWED=NO test
+      - name: Upload UI test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: HorariosFacultad-iOS-UI-Results
+          path: ios-ui-results.xcresult/
+          if-no-files-found: warn
