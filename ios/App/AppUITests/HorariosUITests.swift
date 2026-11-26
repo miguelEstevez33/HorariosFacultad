@@ -46,6 +46,9 @@ final class HorariosUITests: XCTestCase {
             app.swipeUp()
         }
         XCTAssertTrue(subject.waitForExistence(timeout: 20), "La materia no apareció tras filtrar por \(query). Jerarquía: \(app.debugDescription)")
+        if placeholder == "Buscar materia" && app.keyboards.firstMatch.exists && subject.isHittable {
+            subject.tap()
+        }
     }
 
     private func tapVisible(_ element: XCUIElement, in app: XCUIApplication) {
@@ -90,26 +93,46 @@ final class HorariosUITests: XCTestCase {
         XCTAssertTrue(element.waitForExistence(timeout: 20), "El progreso no refleja \(count) materias aprobadas")
     }
 
+    private func recordEvidence(_ app: XCUIApplication, _ name: String) {
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshot.name = name
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        print("UI DIAGNOSTIC \(name):\n\(app.debugDescription)")
+    }
+
+    private func expectSelected(_ app: XCUIApplication, _ label: String) {
+        let predicate = NSPredicate { _, _ in
+            let element = self.toggleControl(app, label)
+            return element.exists && (element.value as? String == "1" || element.isSelected)
+        }
+        let result = XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: nil)], timeout: 15)
+        if result != .completed { recordEvidence(app, "estado-" + label) }
+        XCTAssertEqual(result, .completed, "No quedó seleccionado: \(label)")
+    }
+
     func testSubjectStatusAndPersistence() throws {
         let app = XCUIApplication()
         app.launch()
         openTab(app, "Alumno")
         search(app, "Buscar materia", "Geometr")
-        let none = toggleControl(app, "Sin cursar - Materia 2")
-        tapVisible(none, in: app)
-        XCTAssertEqual(none.value as? String, "1", "Sin cursar no quedó seleccionado")
+        // Regular elimina una comisión previa y garantiza que no esté aprobada.
+        let regularLabel = "Regular - Materia 2"
+        tapVisible(toggleControl(app, regularLabel), in: app)
+        expectSelected(app, regularLabel)
         let baseline = try approvedCount(app)
-        let approved = toggleControl(app, "Aprobado - Materia 2")
-        tapVisible(approved, in: app)
-        XCTAssertEqual(approved.value as? String, "1", "Aprobado no quedó seleccionado")
+        let approvedLabel = "Aprobado - Materia 2"
+        tapVisible(toggleControl(app, approvedLabel), in: app)
         expectProgress(app, baseline + 1)
+        expectSelected(app, approvedLabel)
         app.terminate()
         app.launch()
         expectProgress(app, baseline + 1)
         search(app, "Buscar materia", "Geometr")
-        XCTAssertEqual(approved.value as? String, "1", "El estado aprobado no persistió")
-        tapVisible(none, in: app)
+        expectSelected(app, approvedLabel)
+        tapVisible(toggleControl(app, "Sin cursar - Materia 2"), in: app)
         expectProgress(app, baseline)
+        expectSelected(app, "Sin cursar - Materia 2")
     }
 
     func testScheduleEnrollmentAndExport() {
@@ -135,7 +158,9 @@ final class HorariosUITests: XCTestCase {
         XCTAssertTrue(export.isEnabled)
         tapVisible(export, in: app)
         // Buscar una acción del menú nativo en español o inglés.
-        let nativeAction = app.buttons.matching(NSPredicate(format: "label IN %@", ["Copy", "Copiar", "Save to Files", "Guardar en Archivos", "Save Image", "Guardar imagen", "AirDrop"])).firstMatch
-        XCTAssertTrue(nativeAction.waitForExistence(timeout: 30), "No se detectó el menú nativo de compartir")
+        let nativeAction = app.descendants(matching: .any).matching(NSPredicate(format: "label IN[c] %@", ["Copy", "Copiar", "Save to Files", "Guardar en Archivos", "Save Image", "Guardar imagen", "AirDrop"])).firstMatch
+        let found = nativeAction.waitForExistence(timeout: 30)
+        recordEvidence(app, "resultado-exportacion")
+        XCTAssertTrue(found, "No se detectó una acción del menú de compartir. Revisar UI DIAGNOSTIC y captura; alertas: \(app.alerts.debugDescription)")
     }
 }
