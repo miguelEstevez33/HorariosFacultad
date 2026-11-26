@@ -567,6 +567,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
 }
 
 .edit-course-card-header {
@@ -625,6 +626,8 @@
 .edit-block-time,
 .edit-block-aula {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: 6px 10px;
   background: var(--surface);
   border: 1px solid var(--border);
