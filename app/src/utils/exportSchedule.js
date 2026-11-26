@@ -363,6 +363,31 @@
     const suffix = cuatFilter === "all" ? "" : `-${cuatFilter}`;
     const filename = `horario-isi-2023${suffix}.png`;
 
+    const cap = global.Capacitor;
+    if (cap && cap.getPlatform() === "ios") {
+      // La descarga HTML no es fiable dentro de WKWebView.
+      // Guardar el PNG en caché y entregarlo al menú nativo de iOS.
+      return (async () => {
+        try {
+          const { Filesystem, Share } = cap.Plugins || {};
+          if (!Filesystem || !Share) throw new Error("Plugins nativos no disponibles");
+          const dataUrl = canvas.toDataURL("image/png");
+          if (!dataUrl.startsWith("data:image/png;base64,")) {
+            throw new Error("No se pudo generar la imagen PNG");
+          }
+          const result = await Filesystem.writeFile({
+            path: filename,
+            data: dataUrl.split(",")[1],
+            directory: "CACHE"
+          });
+          await Share.share({ title: "Horario semanal ISI", files: [result.uri] });
+        } catch (error) {
+          console.error("Error al exportar horario en iOS:", error);
+          global.alert("No se pudo exportar el horario. " + (error.message || "Intentá nuevamente."));
+        }
+      })();
+    }
+
     function triggerDownload(url, shouldRevoke) {
       const link = document.createElement("a");
       link.download = filename;
@@ -419,7 +444,7 @@
     ctx.stroke();
 
     drawLegend(ctx, layout, subjects);
-    downloadCanvasPng(canvas, state.currentCuatFilter);
+    return downloadCanvasPng(canvas, state.currentCuatFilter);
   }
 
   App.exportSchedule = {

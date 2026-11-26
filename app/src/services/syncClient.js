@@ -31,6 +31,24 @@
   }
 
   async function requestJson(url, options) {
+    const cap = global.Capacitor;
+    if (cap && cap.getPlatform() === "ios") {
+      const http = cap.Plugins && cap.Plugins.CapacitorHttp;
+      if (!http) throw new Error("Servicio HTTP nativo no disponible");
+      const response = await http.request({
+        url,
+        method: options.method || "GET",
+        headers: options.headers || {},
+        ...(options.body !== undefined ? { data: JSON.parse(options.body) } : {}),
+        responseType: "json",
+        connectTimeout: 10000,
+        readTimeout: 15000
+      });
+      if (response.status < 200 || response.status >= 300) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return typeof response.data === "string" ? JSON.parse(response.data) : response.data;
+    }
     const res = await fetch(url, options);
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
