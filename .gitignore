@@ -11,3 +11,15 @@ android/app/src/main/assets/public/
 android/app/src/main/assets/capacitor.config.json
 android/app/src/main/assets/capacitor.plugins.json
 
+# Binarios, claves de firma, variables locales y basura del SO
+*.apk
+*.exe
+*.keystore
+*.jks
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db
+
+
