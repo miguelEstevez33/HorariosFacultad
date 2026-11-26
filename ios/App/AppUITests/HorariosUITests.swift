@@ -38,6 +38,8 @@ final class HorariosUITests: XCTestCase {
         input.tap()
         input.typeText(query)
         XCTAssertEqual(input.value as? String, query, "El buscador no recibió el texto esperado")
+        let done = app.buttons.matching(NSPredicate(format: "label == %@", "Done")).firstMatch
+        if done.exists && done.isHittable { done.tap() }
         let subject = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "Geometr")).firstMatch
         for _ in 0..<4 {
             if subject.exists { break }
@@ -56,8 +58,21 @@ final class HorariosUITests: XCTestCase {
             if element.isHittable { break }
             app.swipeUp()
         }
-        XCTAssertTrue(element.isHittable, "El control no es accesible mediante toque")
+        for _ in 0..<8 {
+            if element.isHittable { break }
+            app.swipeDown()
+        }
+        XCTAssertTrue(element.isHittable, "El control no es accesible mediante toque: \(element.debugDescription)")
         element.tap()
+    }
+
+    private func toggleControl(_ app: XCUIApplication, _ label: String) -> XCUIElement {
+        let predicate = NSPredicate(format: "label == %@", label)
+        let toggle = app.switches.matching(predicate).firstMatch
+        if toggle.exists { return toggle }
+        let button = app.buttons.matching(predicate).firstMatch
+        if button.exists { return button }
+        return toggle
     }
 
     private func progress(_ app: XCUIApplication) -> XCUIElement {
@@ -80,16 +95,19 @@ final class HorariosUITests: XCTestCase {
         app.launch()
         openTab(app, "Alumno")
         search(app, "Buscar materia", "Geometr")
-        let none = app.buttons.matching(NSPredicate(format: "label == %@", "Sin cursar - Materia 2")).firstMatch
+        let none = toggleControl(app, "Sin cursar - Materia 2")
         tapVisible(none, in: app)
+        XCTAssertEqual(none.value as? String, "1", "Sin cursar no quedó seleccionado")
         let baseline = try approvedCount(app)
-        let approved = app.buttons.matching(NSPredicate(format: "label == %@", "Aprobado - Materia 2")).firstMatch
+        let approved = toggleControl(app, "Aprobado - Materia 2")
         tapVisible(approved, in: app)
+        XCTAssertEqual(approved.value as? String, "1", "Aprobado no quedó seleccionado")
         expectProgress(app, baseline + 1)
         app.terminate()
         app.launch()
         expectProgress(app, baseline + 1)
         search(app, "Buscar materia", "Geometr")
+        XCTAssertEqual(approved.value as? String, "1", "El estado aprobado no persistió")
         tapVisible(none, in: app)
         expectProgress(app, baseline)
     }
@@ -99,7 +117,7 @@ final class HorariosUITests: XCTestCase {
         app.launch()
         openTab(app, "Alumno")
         search(app, "Buscar materia", "Geometr")
-        tapVisible(app.buttons.matching(NSPredicate(format: "label == %@", "Sin cursar - Materia 2")).firstMatch, in: app)
+        tapVisible(toggleControl(app, "Sin cursar - Materia 2"), in: app)
         // Reiniciar la vista para eliminar el filtro y volver al inicio.
         app.terminate()
         app.launch()
@@ -109,7 +127,7 @@ final class HorariosUITests: XCTestCase {
         tapVisible(subject, in: app)
         let remove = app.buttons.matching(NSPredicate(format: "label BEGINSWITH[c] %@", "Quitar ")).firstMatch
         if remove.exists { tapVisible(remove, in: app) }
-        let commission = app.buttons.matching(NSPredicate(format: "label == %@", "Comisión 1K1 Anual")).firstMatch
+        let commission = toggleControl(app, "Comisión 1K1 Anual")
         tapVisible(commission, in: app)
         XCTAssertTrue(remove.waitForExistence(timeout: 20), "La comisión no quedó inscripta")
         let export = app.buttons.matching(NSPredicate(format: "label == %@", "Exportar horario")).firstMatch
