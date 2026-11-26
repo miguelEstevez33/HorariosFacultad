@@ -97,3 +97,20 @@ jobs:
           name: HorariosFacultad-iOS-UI-Results
           path: ios-ui-results.xcresult/
           if-no-files-found: warn
+      - name: Extract UI test report
+        if: always()
+        run: |
+          if [ -d ios-ui-results.xcresult ]; then
+            xcrun xcresulttool get test-results tests \
+              --path ios-ui-results.xcresult \
+              > ios-test-report.json
+
+            cat ios-test-report.json
+          fi
+
+      - name: Upload readable test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-Test-Report
+          path: ios-test-report.json
