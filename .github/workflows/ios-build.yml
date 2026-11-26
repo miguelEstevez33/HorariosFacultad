@@ -78,7 +78,7 @@ jobs:
 
           xcrun simctl status_bar "$SIMULATOR_UDID" override \
             --time "9:41" \
-            --batteryState unplugged \
+            --batteryState discharging \
             --batteryLevel 100
 
           xcrun simctl launch "$SIMULATOR_UDID" \
