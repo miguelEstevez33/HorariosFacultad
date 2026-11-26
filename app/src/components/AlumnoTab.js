@@ -31,7 +31,7 @@
 
     const statusButtonsHtml = ESTADOS_OPCIONES.map(
       opt => `
-        <button type="button" class="status-btn ${st === opt.value ? "active" : ""}" data-id="${m.id}" data-state="${opt.value}">
+        <button type="button" class="status-btn ${st === opt.value ? "active" : ""}" data-id="${m.id}" data-state="${opt.value}" aria-pressed="${st === opt.value}">
           ${opt.label}
         </button>
       `

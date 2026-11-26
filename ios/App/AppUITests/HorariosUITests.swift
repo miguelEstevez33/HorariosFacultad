@@ -28,4 +28,85 @@ final class HorariosUITests: XCTestCase {
         openTab(app, "Alumno")
         XCTAssertTrue(app.webViews.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] %@", "Buscar materia")).firstMatch.waitForExistence(timeout: 15))
     }
+    private func field(_ app: XCUIApplication, _ placeholder: String) -> XCUIElement {
+        app.webViews.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS[c] %@", placeholder)).firstMatch
+    }
+
+    private func search(_ app: XCUIApplication, _ placeholder: String, _ query: String) {
+        let input = field(app, placeholder)
+        XCTAssertTrue(input.waitForExistence(timeout: 20))
+        input.tap()
+        input.typeText(query)
+    }
+
+    private func tapVisible(_ element: XCUIElement, in app: XCUIApplication) {
+        XCTAssertTrue(element.waitForExistence(timeout: 20), "No se encontró el control")
+        for _ in 0..<8 {
+            if element.isHittable { break }
+            app.webViews.firstMatch.swipeUp()
+        }
+        XCTAssertTrue(element.isHittable, "El control no es accesible mediante toque")
+        element.tap()
+    }
+
+    private func progress(_ app: XCUIApplication) -> XCUIElement {
+        app.webViews.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "/ 36 obligatorias")).firstMatch
+    }
+
+    private func approvedCount(_ app: XCUIApplication) throws -> Int {
+        let element = progress(app)
+        XCTAssertTrue(element.waitForExistence(timeout: 20))
+        return try XCTUnwrap(Int(element.label.split(separator: "/")[0].trimmingCharacters(in: .whitespacesAndNewlines)))
+    }
+
+    private func expectProgress(_ app: XCUIApplication, _ count: Int) {
+        let element = app.webViews.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "\(count) / 36 obligatorias")).firstMatch
+        XCTAssertTrue(element.waitForExistence(timeout: 20), "El progreso no refleja \(count) materias aprobadas")
+    }
+
+    func testSubjectStatusAndPersistence() throws {
+        let app = XCUIApplication()
+        app.launch()
+        openTab(app, "Alumno")
+        search(app, "Buscar materia", "Álgebra")
+        let none = app.webViews.buttons.matching(NSPredicate(format: "label == %@", "Sin cursar")).firstMatch
+        tapVisible(none, in: app)
+        let baseline = try approvedCount(app)
+        let approved = app.webViews.buttons.matching(NSPredicate(format: "label == %@", "Aprobado")).firstMatch
+        tapVisible(approved, in: app)
+        expectProgress(app, baseline + 1)
+        app.terminate()
+        app.launch()
+        expectProgress(app, baseline + 1)
+        search(app, "Buscar materia", "Álgebra")
+        tapVisible(none, in: app)
+        expectProgress(app, baseline)
+    }
+
+    func testScheduleEnrollmentAndExport() {
+        let app = XCUIApplication()
+        app.launch()
+        openTab(app, "Alumno")
+        search(app, "Buscar materia", "Álgebra")
+        tapVisible(app.webViews.buttons.matching(NSPredicate(format: "label == %@", "Sin cursar")).firstMatch, in: app)
+        // Reiniciar la vista para eliminar el filtro y volver al inicio.
+        app.terminate()
+        app.launch()
+        openTab(app, "Cursado")
+        search(app, "Filtrar materia", "Álgebra")
+        let subject = app.webViews.buttons.matching(NSPredicate(format: "label BEGINSWITH[c] %@", "Seleccionar Álgebra")).firstMatch
+        tapVisible(subject, in: app)
+        let remove = app.webViews.buttons.matching(NSPredicate(format: "label BEGINSWITH[c] %@", "Quitar ")).firstMatch
+        if remove.exists { tapVisible(remove, in: app) }
+        let commission = app.webViews.buttons.matching(NSPredicate(format: "label == %@", "Comisión 1K1 Anual")).firstMatch
+        tapVisible(commission, in: app)
+        XCTAssertTrue(remove.waitForExistence(timeout: 20), "La comisión no quedó inscripta")
+        let export = app.webViews.buttons.matching(NSPredicate(format: "label == %@", "Exportar horario")).firstMatch
+        XCTAssertTrue(export.waitForExistence(timeout: 20))
+        XCTAssertTrue(export.isEnabled)
+        tapVisible(export, in: app)
+        // Buscar una acción del menú nativo en español o inglés.
+        let nativeAction = app.buttons.matching(NSPredicate(format: "label IN %@", ["Copy", "Copiar", "Save to Files", "Guardar en Archivos", "Save Image", "Guardar imagen", "AirDrop"])).firstMatch
+        XCTAssertTrue(nativeAction.waitForExistence(timeout: 30), "No se detectó el menú nativo de compartir")
+    }
 }

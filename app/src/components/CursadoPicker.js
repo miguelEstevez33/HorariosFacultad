@@ -73,6 +73,7 @@
                   class="comision-chip ${isSelected ? "chip-selected" : ""} ${hasConflict ? "chip-conflict" : ""}"
                   data-materia-id="${m.id}"
                   data-option-id="${o.id}"
+                  aria-label="Comisión ${escapeHtml(o.comision)} ${escapeHtml(o.periodo)}" aria-pressed="${isSelected}"
                   title="${o.comision} (${o.periodo}): ${resumen}${hasConflict ? " — ⚠️ Superposición de horario" : ""}">
             <span class="chip-code">${o.comision}</span>
             <span class="chip-period">${o.periodo === "Anual" ? "A" : o.periodo.replace("° Cuat.", "C")}</span>
