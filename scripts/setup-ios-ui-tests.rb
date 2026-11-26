@@ -12,6 +12,7 @@ unless target
 end
 target.build_configurations.each do |config|
   settings = config.build_settings
+  settings['PRODUCT_NAME'] = 'AppUITests'
   settings['GENERATE_INFOPLIST_FILE'] = 'YES'
   settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.utnfrc.horariosisi.uitests'
   settings['SWIFT_VERSION'] = '5.0'
