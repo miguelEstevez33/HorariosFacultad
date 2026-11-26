@@ -76,8 +76,25 @@
 
   const MATERIAS_MAP = Object.fromEntries(MATERIAS.map(m => [m.id, m]));
 
+  const NIVELES = [
+    { nivel: 1, label: "1° Año — Primer Nivel" },
+    { nivel: 2, label: "2° Año — Segundo Nivel" },
+    { nivel: 3, label: "3° Año — Tercer Nivel" },
+    { nivel: 4, label: "4° Año — Cuarto Nivel" },
+    { nivel: 5, label: "5° Año — Quinto Nivel" }
+  ];
+
+  const ESTADOS_OPCIONES = [
+    { value: "none", label: "Sin cursar" },
+    { value: "cursando", label: "Cursando" },
+    { value: "regular", label: "Regular" },
+    { value: "aprobado", label: "Aprobado" }
+  ];
+
   App.data = {
     MATERIAS,
-    MATERIAS_MAP
+    MATERIAS_MAP,
+    NIVELES,
+    ESTADOS_OPCIONES
   };
 })(window);

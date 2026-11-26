@@ -5,6 +5,13 @@ const os = require("os");
 const vm = require("vm");
 
 const DEFAULT_PORT = process.env.PORT ? Number(process.env.PORT) : 3456;
+const MAX_PAYLOAD_BYTES = 5 * 1024 * 1024;
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type"
+};
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -15,6 +22,14 @@ const MIME_TYPES = {
   ".jpg": "image/jpeg",
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon"
+};
+
+const EMPTY_SYNC_DATA = {
+  estadosAlumno: {},
+  cursosSeleccionados: {},
+  ordenCursosSeleccionados: [],
+  updatedAt: null,
+  source: null
 };
 
 function getLocalIPs() {
@@ -34,9 +49,7 @@ function sendJson(res, statusCode, obj) {
   const body = JSON.stringify(obj);
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type"
+    ...CORS_HEADERS
   });
   res.end(body);
 }
@@ -46,7 +59,7 @@ function collectRequestBody(req) {
     let body = "";
     req.on("data", chunk => {
       body += chunk.toString();
-      if (body.length > 5 * 1024 * 1024) {
+      if (body.length > MAX_PAYLOAD_BYTES) {
         reject(new Error("Payload demasiado grande"));
         req.destroy();
       }
@@ -56,11 +69,24 @@ function collectRequestBody(req) {
   });
 }
 
+function resolveSafeStaticPath(webDir, urlPath) {
+  const safeFile = urlPath === "/" ? "/index.html" : urlPath;
+  const resolvedBase = path.resolve(webDir);
+  const candidate = path.resolve(resolvedBase, "." + path.posix.normalize("/" + safeFile));
+  const rel = path.relative(resolvedBase, candidate);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) {
+    return null;
+  }
+  return candidate;
+}
+
 function createSyncServer(options = {}) {
   const port = options.port || DEFAULT_PORT;
   const projectRoot = path.resolve(__dirname, "..");
-  const webDir = options.webDir || path.join(projectRoot, "app");
+  const webDir = path.resolve(options.webDir || path.join(projectRoot, "app"));
   const syncDataPath = options.syncDataPath || path.join(projectRoot, "sync-data.json");
+
+  let schedulesCache = { mtimeMs: null, data: null };
 
   function readSyncData() {
     try {
@@ -71,13 +97,7 @@ function createSyncServer(options = {}) {
     } catch (err) {
       console.error("Error leyendo sync-data.json:", err.message);
     }
-    return {
-      estadosAlumno: {},
-      cursosSeleccionados: {},
-      ordenCursosSeleccionados: [],
-      updatedAt: null,
-      source: null
-    };
+    return { ...EMPTY_SYNC_DATA };
   }
 
   function writeSyncData(data) {
@@ -92,6 +112,11 @@ function createSyncServer(options = {}) {
     const schedulesPath = path.join(webDir, "src", "data", "schedules.js");
     try {
       if (!fs.existsSync(schedulesPath)) return null;
+      const stat = fs.statSync(schedulesPath);
+      if (schedulesCache.mtimeMs === stat.mtimeMs && schedulesCache.data) {
+        return schedulesCache.data;
+      }
+
       const code = fs.readFileSync(schedulesPath, "utf-8");
       const sandbox = {};
       vm.createContext(sandbox);
@@ -99,91 +124,84 @@ function createSyncServer(options = {}) {
         code + "\nthis.__HORARIOS__ = typeof HORARIOS_MATERIAS !== 'undefined' ? HORARIOS_MATERIAS : null;",
         sandbox
       );
-      return sandbox.__HORARIOS__ || null;
+      schedulesCache = { mtimeMs: stat.mtimeMs, data: sandbox.__HORARIOS__ || null };
+      return schedulesCache.data;
     } catch (err) {
       console.error("Error leyendo schedules.js:", err.message);
       return null;
     }
   }
 
-  return http.createServer(async (req, res) => {
-    const urlPath = (req.url || "/").split("?")[0];
-
-    // CORS preflight para peticiones desde la APK (Capacitor) o file://
-    if (req.method === "OPTIONS") {
-      res.writeHead(204, {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type"
-      });
-      res.end();
-      return;
-    }
-
-    // API: Información del servidor e IPs locales
-    if (urlPath === "/api/info" && req.method === "GET") {
-      const current = readSyncData();
-      sendJson(res, 200, {
-        ok: true,
-        port,
-        ips: getLocalIPs(),
-        serverTime: new Date().toISOString(),
-        lastSync: {
-          updatedAt: current.updatedAt || null,
-          source: current.source || null,
-          estadosCount: Object.keys(current.estadosAlumno || {}).length,
-          cursosCount: Object.keys(current.cursosSeleccionados || {}).length
-        }
-      });
-      return;
-    }
-
-    // API: Obtener datos sincronizados (estados + comisiones + horarios actualizados de schedules.js)
-    if (urlPath === "/api/sync" && req.method === "GET") {
-      const current = readSyncData();
-      const horariosMaterias = loadHorariosFromSchedulesJs();
-      sendJson(res, 200, {
-        ok: true,
-        estadosAlumno: current.estadosAlumno || {},
-        cursosSeleccionados: current.cursosSeleccionados || {},
-        ordenCursosSeleccionados: current.ordenCursosSeleccionados || [],
-        horariosMaterias,
+  function handleApiInfo(res) {
+    const current = readSyncData();
+    sendJson(res, 200, {
+      ok: true,
+      port,
+      ips: getLocalIPs(),
+      serverTime: new Date().toISOString(),
+      lastSync: {
         updatedAt: current.updatedAt || null,
-        source: current.source || null
-      });
-      return;
-    }
-
-    // API: Guardar datos sincronizados enviados desde PC o Celular
-    if (urlPath === "/api/sync" && req.method === "POST") {
-      try {
-        const rawBody = await collectRequestBody(req);
-        const parsed = JSON.parse(rawBody || "{}");
-        const payload = {
-          estadosAlumno: parsed.estadosAlumno && typeof parsed.estadosAlumno === "object" ? parsed.estadosAlumno : {},
-          cursosSeleccionados: parsed.cursosSeleccionados && typeof parsed.cursosSeleccionados === "object" ? parsed.cursosSeleccionados : {},
-          ordenCursosSeleccionados: Array.isArray(parsed.ordenCursosSeleccionados) ? parsed.ordenCursosSeleccionados : Object.keys(parsed.cursosSeleccionados || {}),
-          source: parsed.source || "unknown",
-          updatedAt: new Date().toISOString()
-        };
-        writeSyncData(payload);
-        console.log(`[SYNC] Datos recibidos desde ${payload.source.toUpperCase()} (${Object.keys(payload.estadosAlumno).length} estados, ${Object.keys(payload.cursosSeleccionados).length} cursos) - ${payload.updatedAt}`);
-        sendJson(res, 200, {
-          ok: true,
-          updatedAt: payload.updatedAt,
-          source: payload.source
-        });
-      } catch (err) {
-        sendJson(res, 400, { ok: false, error: err.message });
+        source: current.source || null,
+        estadosCount: Object.keys(current.estadosAlumno || {}).length,
+        cursosCount: Object.keys(current.cursosSeleccionados || {}).length
       }
-      return;
+    });
+  }
+
+  function handleApiSyncGet(res) {
+    const current = readSyncData();
+    const horariosMaterias = loadHorariosFromSchedulesJs();
+    sendJson(res, 200, {
+      ok: true,
+      estadosAlumno: current.estadosAlumno || {},
+      cursosSeleccionados: current.cursosSeleccionados || {},
+      ordenCursosSeleccionados: current.ordenCursosSeleccionados || [],
+      horariosMaterias,
+      updatedAt: current.updatedAt || null,
+      source: current.source || null
+    });
+  }
+
+  async function handleApiSyncPost(req, res) {
+    try {
+      const rawBody = await collectRequestBody(req);
+      const parsed = JSON.parse(rawBody || "{}");
+      const estadosAlumno =
+        parsed.estadosAlumno && typeof parsed.estadosAlumno === "object" && !Array.isArray(parsed.estadosAlumno)
+          ? parsed.estadosAlumno
+          : {};
+      const cursosSeleccionados =
+        parsed.cursosSeleccionados &&
+        typeof parsed.cursosSeleccionados === "object" &&
+        !Array.isArray(parsed.cursosSeleccionados)
+          ? parsed.cursosSeleccionados
+          : {};
+      const payload = {
+        estadosAlumno,
+        cursosSeleccionados,
+        ordenCursosSeleccionados: Array.isArray(parsed.ordenCursosSeleccionados)
+          ? parsed.ordenCursosSeleccionados
+          : Object.keys(cursosSeleccionados),
+        source: parsed.source || "unknown",
+        updatedAt: new Date().toISOString()
+      };
+      writeSyncData(payload);
+      console.log(
+        `[SYNC] Datos recibidos desde ${payload.source.toUpperCase()} (${Object.keys(payload.estadosAlumno).length} estados, ${Object.keys(payload.cursosSeleccionados).length} cursos) - ${payload.updatedAt}`
+      );
+      sendJson(res, 200, {
+        ok: true,
+        updatedAt: payload.updatedAt,
+        source: payload.source
+      });
+    } catch (err) {
+      sendJson(res, 400, { ok: false, error: err.message });
     }
+  }
 
-    // Servir archivos estáticos de la app web en la PC
-    let safeFile = urlPath === "/" ? "/index.html" : urlPath;
-    const fullPath = path.join(webDir, path.normalize(safeFile).replace(/^(\.\.[/\\])+/, ""));
-
-    if (!fullPath.startsWith(webDir) || !fs.existsSync(fullPath) || fs.statSync(fullPath).isDirectory()) {
+  function handleStaticFile(res, urlPath) {
+    const fullPath = resolveSafeStaticPath(webDir, urlPath);
+    if (!fullPath || !fs.existsSync(fullPath) || fs.statSync(fullPath).isDirectory()) {
       res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
       res.end("Archivo no encontrado");
       return;
@@ -196,6 +214,34 @@ function createSyncServer(options = {}) {
       "Cache-Control": "no-cache"
     });
     fs.createReadStream(fullPath).pipe(res);
+  }
+
+  return http.createServer(async (req, res) => {
+    const urlPath = (req.url || "/").split("?")[0];
+
+    // CORS preflight para peticiones desde la APK (Capacitor) o file://
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, CORS_HEADERS);
+      res.end();
+      return;
+    }
+
+    if (urlPath === "/api/info" && req.method === "GET") {
+      handleApiInfo(res);
+      return;
+    }
+
+    if (urlPath === "/api/sync" && req.method === "GET") {
+      handleApiSyncGet(res);
+      return;
+    }
+
+    if (urlPath === "/api/sync" && req.method === "POST") {
+      await handleApiSyncPost(req, res);
+      return;
+    }
+
+    handleStaticFile(res, urlPath);
   });
 }
 
@@ -235,7 +281,7 @@ function startSyncServer(options = {}) {
   });
 }
 
-module.exports = { createSyncServer, startSyncServer, getLocalIPs };
+module.exports = { createSyncServer, startSyncServer, getLocalIPs, resolveSafeStaticPath };
 
 if (require.main === module) {
   startSyncServer({ verbose: true }).catch(err => {

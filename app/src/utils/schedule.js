@@ -2,6 +2,9 @@
 (function (global) {
   const App = (global.App = global.App || {});
 
+  const DAYS_ORDER = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  const CONFLICT_EDGE_TOLERANCE_MIN = 20;
+
   function formatShortTime(tStr) {
     // Convierte "14:00" -> "14" y "13:15" -> "13:15"
     const [hh, mm] = tStr.split(":");
@@ -12,6 +15,36 @@
   function timeToMinutes(tStr) {
     const [hh, mm] = tStr.split(":").map(Number);
     return hh * 60 + mm;
+  }
+
+  function cleanMateriaName(nombre) {
+    return String(nombre || "").replace(/\s*\(Int\)\**/gi, "");
+  }
+
+  function isIsiComision(optionOrCode) {
+    const code = typeof optionOrCode === "string"
+      ? optionOrCode
+      : (optionOrCode && optionOrCode.comision) || "";
+    return /^\d+K/i.test(code);
+  }
+
+  function matchesCuatFilter(periodo, cuatFilter) {
+    if (cuatFilter === "1C" && periodo === "2° Cuat.") return false;
+    if (cuatFilter === "2C" && periodo === "1° Cuat.") return false;
+    return true;
+  }
+
+  function arePeriodosDisjoint(periodoA, periodoB) {
+    return (
+      (periodoA === "1° Cuat." && periodoB === "2° Cuat.") ||
+      (periodoA === "2° Cuat." && periodoB === "1° Cuat.")
+    );
+  }
+
+  function blocksOverlap(a, b) {
+    if (a.dia !== b.dia) return false;
+    if (arePeriodosDisjoint(a.periodo, b.periodo)) return false;
+    return a.startMin < b.endMin && b.startMin < a.endMin;
   }
 
   // Une bloques de la misma comisión en el mismo día separados por un recreo corto (<= 30 min)
@@ -49,43 +82,49 @@
       .join(" • ");
   }
 
-  function doesOptionConflictWithEnrolled(materiaId, option, enrolledBlocks) {
-    for (const b of getMergedBloques(option.bloques)) {
-      const bStart = timeToMinutes(b.inicio);
-      const bEnd = timeToMinutes(b.fin);
-      for (const eb of enrolledBlocks) {
-        if (eb.materiaId === materiaId) continue;
-        if (eb.dia !== b.dia) continue;
-        const disjointCuat =
-          (option.periodo === "1° Cuat." && eb.periodo === "2° Cuat.") ||
-          (option.periodo === "2° Cuat." && eb.periodo === "1° Cuat.");
-        if (!disjointCuat && bStart < eb.endMin && eb.startMin < bEnd) {
-          return true;
-        }
-      }
-    }
-    return false;
+  function getOrderedEnrolledIds(state) {
+    const selected = state.cursosSeleccionados || {};
+    const ordered = Array.isArray(state.ordenCursosSeleccionados)
+      ? state.ordenCursosSeleccionados.filter(id => Boolean(selected[id]))
+      : [];
+    const missing = Object.keys(selected).filter(id => !ordered.includes(id));
+    return [...ordered, ...missing];
   }
 
-  function getEnrolledBlocksList() {
+  function collectEnrolledSchedule(cuatFilter) {
     const { MATERIAS_MAP } = App.data;
-    const { cursosSeleccionados, currentCuatFilter } = App.store.state;
-    const list = [];
+    const { state, getOpcionesComision } = App.store;
+    const activeFilter = cuatFilter !== undefined ? cuatFilter : state.currentCuatFilter;
+    const orderedIds = getOrderedEnrolledIds(state);
 
-    for (const [mId, optId] of Object.entries(cursosSeleccionados)) {
+    const subjects = [];
+    const blocks = [];
+    let totalHoras = 0;
+
+    for (const mId of orderedIds) {
+      const optId = state.cursosSeleccionados[mId];
       const materia = MATERIAS_MAP[mId];
       if (!materia) continue;
-      const opciones = App.store.getOpcionesComision(mId);
+      const opciones = getOpcionesComision(mId);
       const opt = opciones.find(o => o.id === optId);
       if (!opt) continue;
+      if (!matchesCuatFilter(opt.periodo, activeFilter)) continue;
 
-      if (currentCuatFilter === "1C" && opt.periodo === "2° Cuat.") continue;
-      if (currentCuatFilter === "2C" && opt.periodo === "1° Cuat.") continue;
+      const nombre = cleanMateriaName(materia.nombre);
+      totalHoras += materia.carga;
+      subjects.push({
+        id: mId,
+        nombre,
+        comision: opt.comision,
+        optionId: opt.id,
+        periodo: opt.periodo,
+        carga: materia.carga
+      });
 
       for (const b of getMergedBloques(opt.bloques)) {
-        list.push({
+        blocks.push({
           materiaId: mId,
-          materiaNombre: materia.nombre.replace(/\s*\(Int\)\**/gi, ""),
+          materiaNombre: nombre,
           comision: opt.comision,
           optionId: opt.id,
           periodo: opt.periodo,
@@ -95,20 +134,116 @@
           startMin: timeToMinutes(b.inicio),
           endMin: timeToMinutes(b.fin),
           conflict: false,
+          isConflictOverlay: false,
+          sameStartConflict: false,
+          sameEndConflict: false,
           isPreview: false
         });
       }
     }
-    return list;
+
+    return {
+      subjects,
+      blocks,
+      totalMaterias: subjects.length,
+      totalHoras
+    };
+  }
+
+  function getEnrolledBlocksList(cuatFilter) {
+    return collectEnrolledSchedule(cuatFilter).blocks;
+  }
+
+  function detectEnrolledConflicts(enrolledBlocks) {
+    const blocks = enrolledBlocks.map(b => ({
+      ...b,
+      conflict: false,
+      isConflictOverlay: false,
+      sameStartConflict: false,
+      sameEndConflict: false
+    }));
+    const conflicts = [];
+
+    for (let i = 0; i < blocks.length; i++) {
+      for (let j = i + 1; j < blocks.length; j++) {
+        const a = blocks[i];
+        const b = blocks[j];
+        if (blocksOverlap(a, b)) {
+          b.conflict = true;
+          b.isConflictOverlay = true;
+          if (Math.abs(b.startMin - a.startMin) < CONFLICT_EDGE_TOLERANCE_MIN) {
+            b.sameStartConflict = true;
+          }
+          if (Math.abs(b.endMin - a.endMin) < CONFLICT_EDGE_TOLERANCE_MIN) {
+            b.sameEndConflict = true;
+          }
+          conflicts.push({ dia: a.dia, a, b });
+        }
+      }
+    }
+
+    return { blocks, conflicts };
+  }
+
+  function doesOptionConflictWithEnrolled(materiaId, option, enrolledBlocks) {
+    for (const b of getMergedBloques(option.bloques)) {
+      const candidate = {
+        dia: b.dia,
+        periodo: option.periodo,
+        startMin: timeToMinutes(b.inicio),
+        endMin: timeToMinutes(b.fin)
+      };
+      for (const eb of enrolledBlocks) {
+        if (eb.materiaId === materiaId) continue;
+        if (blocksOverlap(candidate, eb)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function computeHourRange(blocks, options = {}) {
+    const defaultMin = options.defaultMinHour !== undefined ? options.defaultMinHour : 8;
+    const defaultMax = options.defaultMaxHour !== undefined ? options.defaultMaxHour : 23;
+    const minSpan = options.minSpan !== undefined ? options.minSpan : 8;
+
+    let minHour = defaultMin;
+    let maxHour = defaultMax;
+
+    if (blocks.length > 0) {
+      const earliest = Math.min(...blocks.map(b => b.startMin));
+      const latest = Math.max(...blocks.map(b => b.endMin));
+      minHour = Math.max(7, Math.floor(earliest / 60));
+      maxHour = Math.min(24, Math.ceil(latest / 60));
+      if (maxHour - minHour < minSpan) {
+        maxHour = Math.min(24, minHour + minSpan);
+      }
+    }
+
+    const totalHours = maxHour - minHour;
+    const minMin = minHour * 60;
+    const maxMin = maxHour * 60;
+
+    return {
+      minHour,
+      maxHour,
+      totalHours,
+      minMin,
+      maxMin,
+      totalRangeMin: maxMin - minMin
+    };
   }
 
   function computeColumnLanes(dayBlocks) {
     if (dayBlocks.length === 0) return [];
-    const sorted = [...dayBlocks].sort((a, b) => {
-      if (a.startMin !== b.startMin) return a.startMin - b.startMin;
-      if (a.isPreview !== b.isPreview) return a.isPreview ? 1 : -1;
-      return b.endMin - a.endMin;
-    });
+    const sorted = dayBlocks
+      .map(blk => ({ ...blk }))
+      .sort((a, b) => {
+        if (a.startMin !== b.startMin) return a.startMin - b.startMin;
+        if (a.isPreview !== b.isPreview) return a.isPreview ? 1 : -1;
+        return b.endMin - a.endMin;
+      });
 
     // Agrupar bloques que se solapan temporalmente en clusters
     const clusters = [];
@@ -157,12 +292,23 @@
   }
 
   App.schedule = {
+    DAYS_ORDER,
+    CONFLICT_EDGE_TOLERANCE_MIN,
     formatShortTime,
     timeToMinutes,
+    cleanMateriaName,
+    isIsiComision,
+    matchesCuatFilter,
+    arePeriodosDisjoint,
+    blocksOverlap,
     getMergedBloques,
     formatBloquesResumen,
-    doesOptionConflictWithEnrolled,
+    getOrderedEnrolledIds,
+    collectEnrolledSchedule,
     getEnrolledBlocksList,
+    detectEnrolledConflicts,
+    doesOptionConflictWithEnrolled,
+    computeHourRange,
     computeColumnLanes
   };
 })(window);

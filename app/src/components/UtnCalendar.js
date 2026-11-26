@@ -3,6 +3,8 @@
   const App = (global.App = global.App || {});
   App.components = App.components || {};
 
+  let lastHoveredOptionId = null;
+
   function highlightHoveredOption(optionId) {
     const allCards = document.querySelectorAll(".utn-class-card");
     allCards.forEach(card => {
@@ -19,173 +21,92 @@
     });
   }
 
-  function render() {
+  function buildPreviewBlocks(enrolledBlocks) {
     const { MATERIAS_MAP } = App.data;
-    const { state, getOpcionesComision, selectComisionMateria } = App.store;
+    const { state, getOpcionesComision } = App.store;
     const {
+      CONFLICT_EDGE_TOLERANCE_MIN,
+      cleanMateriaName,
+      isIsiComision,
+      matchesCuatFilter,
+      blocksOverlap,
       getMergedBloques,
       timeToMinutes,
-      formatShortTime,
-      doesOptionConflictWithEnrolled,
-      computeColumnLanes
+      doesOptionConflictWithEnrolled
     } = App.schedule;
 
-    const calBody = document.getElementById("utn-cal-body");
-    const summaryPill = document.getElementById("enrolled-summary-pill");
-    const btnClear = document.getElementById("btn-clear-plan");
-    const btnExport = document.getElementById("btn-export-schedule");
-    const conflictBanner = document.getElementById("conflict-alert-banner");
-
-    const daysOrder = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-
-    // 1) Recolectar bloques de las comisiones inscriptas respetando el orden de selección
-    for (const mId of Object.keys(state.cursosSeleccionados)) {
-      if (!state.ordenCursosSeleccionados.includes(mId)) {
-        state.ordenCursosSeleccionados.push(mId);
-      }
+    const activeId = state.activePreviewMateriaId;
+    if (!activeId || !MATERIAS_MAP[activeId]) {
+      return { previewBlocks: [], previewMateriaObj: null };
     }
-    state.ordenCursosSeleccionados = state.ordenCursosSeleccionados.filter(mId =>
-      Boolean(state.cursosSeleccionados[mId])
-    );
 
-    const enrolledBlocks = [];
-    let totalMaterias = 0;
-    let totalHoras = 0;
+    const previewMateriaObj = MATERIAS_MAP[activeId];
+    const todasOpciones = getOpcionesComision(activeId);
+    const isiOpts = todasOpciones.filter(isIsiComision);
+    const opcionesAMostrar = state.showOnlyIsiInPreview && isiOpts.length > 0 ? isiOpts : todasOpciones;
+    const plantedOptionId = state.cursosSeleccionados[activeId] || null;
+    const materiaNombre = cleanMateriaName(previewMateriaObj.nombre);
+    const previewBlocks = [];
 
-    for (const mId of state.ordenCursosSeleccionados) {
-      const optId = state.cursosSeleccionados[mId];
-      const materia = MATERIAS_MAP[mId];
-      if (!materia) continue;
-      const opciones = getOpcionesComision(mId);
-      const opt = opciones.find(o => o.id === optId);
-      if (!opt) continue;
+    for (const opt of opcionesAMostrar) {
+      if (opt.id === plantedOptionId) continue;
+      if (!matchesCuatFilter(opt.periodo, state.currentCuatFilter)) continue;
 
-      if (state.currentCuatFilter === "1C" && opt.periodo === "2° Cuat.") continue;
-      if (state.currentCuatFilter === "2C" && opt.periodo === "1° Cuat.") continue;
-
-      totalMaterias++;
-      totalHoras += materia.carga;
+      const optionConflicts = doesOptionConflictWithEnrolled(activeId, opt, enrolledBlocks);
 
       for (const b of getMergedBloques(opt.bloques)) {
-        enrolledBlocks.push({
-          materiaId: mId,
-          materiaNombre: materia.nombre.replace(/\s*\(Int\)\**/gi, ""),
+        const bStart = timeToMinutes(b.inicio);
+        const bEnd = timeToMinutes(b.fin);
+        const candidate = { dia: b.dia, periodo: opt.periodo, startMin: bStart, endMin: bEnd };
+
+        let blockConflictsWithOther = false;
+        let sameStartConflict = false;
+        let sameEndConflict = false;
+        const conflictingNames = [];
+
+        for (const eb of enrolledBlocks) {
+          if (eb.materiaId === activeId) continue;
+          if (blocksOverlap(candidate, eb)) {
+            blockConflictsWithOther = true;
+            if (Math.abs(bStart - eb.startMin) < CONFLICT_EDGE_TOLERANCE_MIN) sameStartConflict = true;
+            if (Math.abs(bEnd - eb.endMin) < CONFLICT_EDGE_TOLERANCE_MIN) sameEndConflict = true;
+            conflictingNames.push(`${eb.materiaNombre} (${eb.comision})`);
+          }
+        }
+
+        previewBlocks.push({
+          materiaId: activeId,
+          materiaNombre,
           comision: opt.comision,
           optionId: opt.id,
           periodo: opt.periodo,
           dia: b.dia,
           inicio: b.inicio,
           fin: b.fin,
-          startMin: timeToMinutes(b.inicio),
-          endMin: timeToMinutes(b.fin),
-          conflict: false,
-          isConflictOverlay: false,
-          sameStartConflict: false,
-          sameEndConflict: false,
-          isPreview: false
+          startMin: bStart,
+          endMin: bEnd,
+          conflict: blockConflictsWithOther || optionConflicts,
+          blockDirectConflict: blockConflictsWithOther,
+          sameStartConflict,
+          sameEndConflict,
+          conflictingNames,
+          isPreview: true
         });
       }
     }
 
-    summaryPill.textContent = `${totalMaterias} ${totalMaterias === 1 ? "materia inscripta" : "materias inscriptas"} (${totalHoras} hs/sem)`;
-    btnClear.disabled = Object.keys(state.cursosSeleccionados).length === 0;
-    if (btnExport) {
-      btnExport.disabled = totalMaterias === 0;
-    }
+    return { previewBlocks, previewMateriaObj };
+  }
 
-    // Detectar superposiciones horarias entre materias ya inscriptas
-    const conflictsList = [];
-    for (let i = 0; i < enrolledBlocks.length; i++) {
-      for (let j = i + 1; j < enrolledBlocks.length; j++) {
-        const a = enrolledBlocks[i];
-        const b = enrolledBlocks[j];
-        if (a.dia === b.dia) {
-          const disjointCuat =
-            (a.periodo === "1° Cuat." && b.periodo === "2° Cuat.") ||
-            (a.periodo === "2° Cuat." && b.periodo === "1° Cuat.");
-          if (!disjointCuat && a.startMin < b.endMin && b.startMin < a.endMin) {
-            b.conflict = true;
-            b.isConflictOverlay = true;
-            if (Math.abs(b.startMin - a.startMin) < 20) b.sameStartConflict = true;
-            if (Math.abs(b.endMin - a.endMin) < 20) b.sameEndConflict = true;
-            conflictsList.push(
-              `${a.dia}: <strong>${b.materiaNombre} (${b.comision})</strong> se superpone sobre <strong>${a.materiaNombre} (${a.comision})</strong> (${b.inicio}-${b.fin} vs ${a.inicio}-${a.fin})`
-            );
-          }
-        }
-      }
-    }
-
-    // 2) Bloques de vista previa para la materia seleccionada en el selector
-    const previewBlocks = [];
-    let previewMateriaObj = null;
-
-    if (state.activePreviewMateriaId && MATERIAS_MAP[state.activePreviewMateriaId]) {
-      previewMateriaObj = MATERIAS_MAP[state.activePreviewMateriaId];
-      const todasOpciones = getOpcionesComision(state.activePreviewMateriaId);
-      const isIsiComision = o => /^\d+K/i.test(o.comision);
-      const isiOpts = todasOpciones.filter(isIsiComision);
-      const opcionesAMostrar = state.showOnlyIsiInPreview && isiOpts.length > 0 ? isiOpts : todasOpciones;
-      const plantedOptionId = state.cursosSeleccionados[state.activePreviewMateriaId] || null;
-
-      for (const opt of opcionesAMostrar) {
-        if (opt.id === plantedOptionId) continue;
-
-        if (state.currentCuatFilter === "1C" && opt.periodo === "2° Cuat.") continue;
-        if (state.currentCuatFilter === "2C" && opt.periodo === "1° Cuat.") continue;
-
-        const optionConflicts = doesOptionConflictWithEnrolled(state.activePreviewMateriaId, opt, enrolledBlocks);
-
-        for (const b of getMergedBloques(opt.bloques)) {
-          const bStart = timeToMinutes(b.inicio);
-          const bEnd = timeToMinutes(b.fin);
-          let blockConflictsWithOther = false;
-          let sameStartConflict = false;
-          let sameEndConflict = false;
-          const conflictingNames = [];
-
-          for (const eb of enrolledBlocks) {
-            if (eb.materiaId === state.activePreviewMateriaId) continue;
-            if (eb.dia !== b.dia) continue;
-            const disjointCuat =
-              (opt.periodo === "1° Cuat." && eb.periodo === "2° Cuat.") ||
-              (opt.periodo === "2° Cuat." && eb.periodo === "1° Cuat.");
-            if (!disjointCuat && bStart < eb.endMin && eb.startMin < bEnd) {
-              blockConflictsWithOther = true;
-              if (Math.abs(bStart - eb.startMin) < 20) sameStartConflict = true;
-              if (Math.abs(bEnd - eb.endMin) < 20) sameEndConflict = true;
-              conflictingNames.push(`${eb.materiaNombre} (${eb.comision})`);
-            }
-          }
-
-          previewBlocks.push({
-            materiaId: state.activePreviewMateriaId,
-            materiaNombre: previewMateriaObj.nombre.replace(/\s*\(Int\)\**/gi, ""),
-            comision: opt.comision,
-            optionId: opt.id,
-            periodo: opt.periodo,
-            dia: b.dia,
-            inicio: b.inicio,
-            fin: b.fin,
-            startMin: bStart,
-            endMin: bEnd,
-            conflict: blockConflictsWithOther || optionConflicts,
-            blockDirectConflict: blockConflictsWithOther,
-            sameStartConflict,
-            sameEndConflict,
-            conflictingNames,
-            isPreview: true
-          });
-        }
-      }
-    }
-
-    const allBlocks = [...enrolledBlocks, ...previewBlocks];
-
-    if (conflictsList.length > 0) {
+  function renderBanner(conflictBanner, conflicts, previewMateriaObj) {
+    if (conflicts.length > 0) {
+      const lines = conflicts.map(
+        ({ dia, a, b }) =>
+          `${dia}: <strong>${b.materiaNombre} (${b.comision})</strong> se superpone sobre <strong>${a.materiaNombre} (${a.comision})</strong> (${b.inicio}-${b.fin} vs ${a.inicio}-${a.fin})`
+      );
       conflictBanner.style.display = "block";
       conflictBanner.className = "conflict-banner";
-      conflictBanner.innerHTML = `⚠️ <strong>Superposición horaria detectada:</strong><br>${conflictsList.join("<br>")}`;
+      conflictBanner.innerHTML = `⚠️ <strong>Superposición horaria detectada:</strong><br>${lines.join("<br>")}`;
     } else if (previewMateriaObj) {
       conflictBanner.style.display = "block";
       conflictBanner.className = "conflict-banner preview-active-banner";
@@ -194,39 +115,75 @@
       conflictBanner.className = "conflict-banner";
       conflictBanner.style.display = "none";
     }
+  }
 
-    // Rango horario vertical en horas enteras
-    let minHour = 8;
-    let maxHour = 23;
-
-    if (allBlocks.length > 0) {
-      const earliest = Math.min(...allBlocks.map(b => b.startMin));
-      const latest = Math.max(...allBlocks.map(b => b.endMin));
-      minHour = Math.max(7, Math.floor(earliest / 60));
-      maxHour = Math.min(24, Math.ceil(latest / 60));
-      if (maxHour - minHour < 8) {
-        maxHour = Math.min(24, minHour + 8);
-      }
-    }
-
-    const minMin = minHour * 60;
-    const maxMin = maxHour * 60;
-    const totalRange = maxMin - minMin;
-
-    let stripesHtml = `<div class="utn-stripes-layer">`;
+  function renderTimeColumnAndStripes(minHour, maxHour) {
+    let stripesInner = "";
     let timeColSlotsHtml = "";
 
     for (let h = minHour; h < maxHour; h++) {
-      const hLabel = `${h}:00`;
-      stripesHtml += `<div class="utn-stripe-band"></div>`;
-      timeColSlotsHtml += `<div class="utn-time-slot"><span>${hLabel}</span></div>`;
+      stripesInner += `<div class="utn-stripe-band"></div>`;
+      timeColSlotsHtml += `<div class="utn-time-slot"><span>${h}:00</span></div>`;
     }
-    stripesHtml += `</div>`;
 
-    const timeColHtml = `<div class="utn-time-column">${timeColSlotsHtml}</div>`;
+    return `<div class="utn-stripes-layer">${stripesInner}</div><div class="utn-time-column">${timeColSlotsHtml}</div>`;
+  }
 
-    let colsHtml = "";
-    for (const dayName of daysOrder) {
+  function renderClassCard(b, minMin, totalRangeMin) {
+    const { formatShortTime } = App.schedule;
+    const topPct = ((b.startMin - minMin) / totalRangeMin) * 100;
+    const heightPct = Math.max(7.5, ((b.endMin - b.startMin) / totalRangeMin) * 100);
+    const timeLabel = `${formatShortTime(b.inicio)} — ${formatShortTime(b.fin)}hs`;
+
+    const totalLanes = b.totalLanes || 1;
+    const laneIndex = b.laneIndex || 0;
+    const widthPct = 100 / totalLanes;
+    const leftPct = laneIndex * widthPct;
+
+    const isRedConflict = Boolean(b.conflict);
+    const cardClasses = [
+      "utn-class-card",
+      b.isPreview ? "is-preview-card" : "is-enrolled-card",
+      isRedConflict ? "has-conflict" : "",
+      isRedConflict && b.sameStartConflict ? "has-same-start-conflict" : "",
+      isRedConflict && b.sameEndConflict ? "has-same-end-conflict" : "",
+      totalLanes === 2 ? "is-two-lanes" : "",
+      totalLanes >= 3 ? "is-compact-lane" : ""
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    const tooltipText = b.isPreview
+      ? b.conflict
+        ? `⚠️ Choca con ${b.conflictingNames && b.conflictingNames.length ? b.conflictingNames.join(", ") : "otra materia plantada en otro día"} — Clic para plantar igual ${b.materiaNombre} (${b.comision} - ${b.periodo})`
+        : `Clic para plantar ${b.materiaNombre} en comisión ${b.comision} (${b.periodo}: ${timeLabel})`
+      : `Inscripto: ${b.materiaNombre} (${b.comision} - ${b.periodo}). Clic para ver opciones o cambiar.`;
+
+    const statusText = b.isPreview
+      ? b.conflict
+        ? "(Ocupado / Choque)"
+        : "(Plantar aquí)"
+      : "(Inscripto)";
+
+    return `
+      <div class="${cardClasses}"
+           style="top: ${topPct.toFixed(2)}%; height: ${heightPct.toFixed(2)}%; left: calc(${leftPct.toFixed(2)}% + 2px); width: calc(${widthPct.toFixed(2)}% - 4px);"
+           data-materia-id="${b.materiaId}"
+           data-option-id="${b.optionId}"
+           data-is-preview="${b.isPreview ? "1" : "0"}"
+           title="${tooltipText}">
+        <div class="utn-card-time">${timeLabel}</div>
+        <div class="utn-card-subject">${b.materiaNombre}</div>
+        <div class="utn-card-status">${statusText}</div>
+        <div class="utn-card-comision">${b.comision}</div>
+      </div>
+    `;
+  }
+
+  function renderDayColumns(enrolledBlocks, previewBlocks, minMin, totalRangeMin) {
+    const { DAYS_ORDER, computeColumnLanes } = App.schedule;
+
+    return DAYS_ORDER.map(dayName => {
       const baseDayBlocks = computeColumnLanes(
         enrolledBlocks.filter(b => b.dia === dayName && !b.isConflictOverlay)
       );
@@ -234,64 +191,45 @@
         ...enrolledBlocks.filter(b => b.dia === dayName && b.isConflictOverlay),
         ...previewBlocks.filter(b => b.dia === dayName)
       ]);
-      const dayBlocks = [...baseDayBlocks, ...overlayDayBlocks];
-
-      const cardsHtml = dayBlocks
-        .map(b => {
-          const topPct = ((b.startMin - minMin) / totalRange) * 100;
-          const heightPct = Math.max(7.5, ((b.endMin - b.startMin) / totalRange) * 100);
-          const timeLabel = `${formatShortTime(b.inicio)} — ${formatShortTime(b.fin)}hs`;
-
-          const totalLanes = b.totalLanes || 1;
-          const laneIndex = b.laneIndex || 0;
-          const widthPct = 100 / totalLanes;
-          const leftPct = laneIndex * widthPct;
-          const isTwoLanes = totalLanes === 2;
-          const isCompactLane = totalLanes >= 3;
-
-          const isRedConflict = Boolean(b.conflict);
-          const cardClasses = [
-            "utn-class-card",
-            b.isPreview ? "is-preview-card" : "is-enrolled-card",
-            isRedConflict ? "has-conflict" : "",
-            isRedConflict && b.sameStartConflict ? "has-same-start-conflict" : "",
-            isRedConflict && b.sameEndConflict ? "has-same-end-conflict" : "",
-            isTwoLanes ? "is-two-lanes" : "",
-            isCompactLane ? "is-compact-lane" : ""
-          ]
-            .filter(Boolean)
-            .join(" ");
-
-          const tooltipText = b.isPreview
-            ? b.conflict
-              ? `⚠️ Choca con ${b.conflictingNames && b.conflictingNames.length ? b.conflictingNames.join(", ") : "otra materia plantada en otro día"} — Clic para plantar igual ${b.materiaNombre} (${b.comision} - ${b.periodo})`
-              : `Clic para plantar ${b.materiaNombre} en comisión ${b.comision} (${b.periodo}: ${timeLabel})`
-            : `Inscripto: ${b.materiaNombre} (${b.comision} - ${b.periodo}). Clic para ver opciones o cambiar.`;
-
-          const statusText = b.isPreview
-            ? b.conflict
-              ? "(Ocupado / Choque)"
-              : "(Plantar aquí)"
-            : "(Inscripto)";
-
-          return `
-            <div class="${cardClasses}"
-                 style="top: ${topPct.toFixed(2)}%; height: ${heightPct.toFixed(2)}%; left: calc(${leftPct.toFixed(2)}% + 2px); width: calc(${widthPct.toFixed(2)}% - 4px);"
-                 data-materia-id="${b.materiaId}"
-                 data-option-id="${b.optionId}"
-                 data-is-preview="${b.isPreview ? "1" : "0"}"
-                 title="${tooltipText}">
-              <div class="utn-card-time">${timeLabel}</div>
-              <div class="utn-card-subject">${b.materiaNombre}</div>
-              <div class="utn-card-status">${statusText}</div>
-              <div class="utn-card-comision">${b.comision}</div>
-            </div>
-          `;
-        })
+      const cardsHtml = [...baseDayBlocks, ...overlayDayBlocks]
+        .map(b => renderClassCard(b, minMin, totalRangeMin))
         .join("");
 
-      colsHtml += `<div class="utn-day-column">${cardsHtml}</div>`;
+      return `<div class="utn-day-column">${cardsHtml}</div>`;
+    }).join("");
+  }
+
+  function render() {
+    const { state } = App.store;
+    const {
+      collectEnrolledSchedule,
+      detectEnrolledConflicts,
+      computeHourRange
+    } = App.schedule;
+
+    const calBody = document.getElementById("utn-cal-body");
+    const summaryPill = document.getElementById("enrolled-summary-pill");
+    const btnClear = document.getElementById("btn-clear-plan");
+    const btnExport = document.getElementById("btn-export-schedule");
+    const conflictBanner = document.getElementById("conflict-alert-banner");
+
+    const { blocks: rawEnrolledBlocks, totalMaterias, totalHoras } = collectEnrolledSchedule();
+    const { blocks: enrolledBlocks, conflicts } = detectEnrolledConflicts(rawEnrolledBlocks);
+
+    summaryPill.textContent = `${totalMaterias} ${totalMaterias === 1 ? "materia inscripta" : "materias inscriptas"} (${totalHoras} hs/sem)`;
+    btnClear.disabled = Object.keys(state.cursosSeleccionados).length === 0;
+    if (btnExport) {
+      btnExport.disabled = totalMaterias === 0;
     }
+
+    const { previewBlocks, previewMateriaObj } = buildPreviewBlocks(enrolledBlocks);
+    const allBlocks = [...enrolledBlocks, ...previewBlocks];
+
+    renderBanner(conflictBanner, conflicts, previewMateriaObj);
+
+    const { minHour, maxHour, minMin, totalRangeMin } = computeHourRange(allBlocks);
+    const gridChromeHtml = renderTimeColumnAndStripes(minHour, maxHour);
+    const colsHtml = renderDayColumns(enrolledBlocks, previewBlocks, minMin, totalRangeMin);
 
     const emptyOverlayHtml =
       allBlocks.length === 0
@@ -303,36 +241,50 @@
           </div>`
         : "";
 
-    calBody.innerHTML = stripesHtml + timeColHtml + colsHtml + emptyOverlayHtml;
+    lastHoveredOptionId = null;
+    calBody.innerHTML = gridChromeHtml + colsHtml + emptyOverlayHtml;
+  }
 
-    calBody.querySelectorAll(".utn-class-card").forEach(card => {
+  function bindCalendarDelegatedEvents() {
+    const calBody = document.getElementById("utn-cal-body");
+    if (!calBody) return;
+
+    calBody.addEventListener("click", e => {
+      const card = e.target.closest(".utn-class-card");
+      if (!card) return;
       const mId = card.getAttribute("data-materia-id");
       const optId = card.getAttribute("data-option-id");
       const isPrev = card.getAttribute("data-is-preview") === "1";
 
-      card.addEventListener("click", () => {
-        if (isPrev) {
-          selectComisionMateria(mId, optId);
-        } else {
-          App.components.CursadoPicker.togglePreviewMateria(mId);
-        }
-      });
+      if (isPrev) {
+        App.store.selectComisionMateria(mId, optId);
+      } else {
+        App.components.CursadoPicker.togglePreviewMateria(mId);
+      }
+    });
 
-      card.addEventListener("mouseenter", () => {
-        if (state.activePreviewMateriaId) {
-          highlightHoveredOption(optId);
-        }
-      });
+    calBody.addEventListener("mouseover", e => {
+      if (!App.store.state.activePreviewMateriaId) return;
+      const card = e.target.closest(".utn-class-card");
+      const optId = card ? card.getAttribute("data-option-id") : null;
+      if (optId !== lastHoveredOptionId) {
+        lastHoveredOptionId = optId;
+        highlightHoveredOption(optId);
+      }
+    });
 
-      card.addEventListener("mouseleave", () => {
-        if (state.activePreviewMateriaId) {
-          highlightHoveredOption(null);
-        }
-      });
+    calBody.addEventListener("mouseleave", () => {
+      if (!App.store.state.activePreviewMateriaId) return;
+      if (lastHoveredOptionId !== null) {
+        lastHoveredOptionId = null;
+        highlightHoveredOption(null);
+      }
     });
   }
 
   function bindEvents() {
+    bindCalendarDelegatedEvents();
+
     document.querySelectorAll(".cuat-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         document.querySelectorAll(".cuat-btn").forEach(b => b.classList.remove("active"));

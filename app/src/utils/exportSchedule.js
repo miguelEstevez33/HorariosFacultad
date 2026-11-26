@@ -3,6 +3,8 @@
 (function (global) {
   const App = (global.App = global.App || {});
 
+  const FONT_STACK = "system-ui, -apple-system, 'Segoe UI', 'Inter', sans-serif";
+
   const SUBJECT_PALETTE = [
     { bg: "#e6f0f8", border: "#2c7bb6", text: "#163d5c" }, // Azul
     { bg: "#e8f4ec", border: "#2e7d4f", text: "#17432a" }, // Verde
@@ -64,83 +66,19 @@
     return "Anual Completo";
   }
 
-  function exportSchedulePng() {
-    const { MATERIAS_MAP } = App.data;
-    const { state, getOpcionesComision } = App.store;
-    const { getMergedBloques, timeToMinutes, formatShortTime, computeColumnLanes } = App.schedule;
-
-    const daysOrder = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-    const orderedIds = [
-      ...state.ordenCursosSeleccionados.filter(id => Boolean(state.cursosSeleccionados[id])),
-      ...Object.keys(state.cursosSeleccionados).filter(
-        id => !state.ordenCursosSeleccionados.includes(id)
-      )
-    ];
-
-    const subjects = [];
-    const blocks = [];
+  function collectExportData() {
+    const { subjects: rawSubjects, blocks, totalHoras } = App.schedule.collectEnrolledSchedule();
     const colorByMateria = {};
-    let totalHoras = 0;
+    const subjects = rawSubjects.map((subj, idx) => {
+      const palette = SUBJECT_PALETTE[idx % SUBJECT_PALETTE.length];
+      colorByMateria[subj.id] = palette;
+      return { ...subj, palette };
+    });
+    return { subjects, blocks, colorByMateria, totalHoras };
+  }
 
-    for (const mId of orderedIds) {
-      const optId = state.cursosSeleccionados[mId];
-      const materia = MATERIAS_MAP[mId];
-      if (!materia) continue;
-      const opciones = getOpcionesComision(mId);
-      const opt = opciones.find(o => o.id === optId);
-      if (!opt) continue;
-
-      if (state.currentCuatFilter === "1C" && opt.periodo === "2° Cuat.") continue;
-      if (state.currentCuatFilter === "2C" && opt.periodo === "1° Cuat.") continue;
-
-      const palette = SUBJECT_PALETTE[subjects.length % SUBJECT_PALETTE.length];
-      colorByMateria[mId] = palette;
-
-      const cleanName = materia.nombre.replace(/\s*\(Int\)\**/gi, "");
-      totalHoras += materia.carga;
-      subjects.push({
-        id: mId,
-        nombre: cleanName,
-        comision: opt.comision,
-        periodo: opt.periodo,
-        carga: materia.carga,
-        palette
-      });
-
-      for (const b of getMergedBloques(opt.bloques)) {
-        blocks.push({
-          materiaId: mId,
-          materiaNombre: cleanName,
-          comision: opt.comision,
-          periodo: opt.periodo,
-          dia: b.dia,
-          inicio: b.inicio,
-          fin: b.fin,
-          startMin: timeToMinutes(b.inicio),
-          endMin: timeToMinutes(b.fin),
-          isPreview: false
-        });
-      }
-    }
-
-    if (subjects.length === 0 || blocks.length === 0) {
-      return;
-    }
-
-    // Rango horario vertical
-    const earliest = Math.min(...blocks.map(b => b.startMin));
-    const latest = Math.max(...blocks.map(b => b.endMin));
-    const minHour = Math.max(7, Math.floor(earliest / 60));
-    let maxHour = Math.min(24, Math.ceil(latest / 60));
-    if (maxHour - minHour < 8) {
-      maxHour = Math.min(24, minHour + 8);
-    }
-
-    const totalHours = maxHour - minHour;
-    const minMin = minHour * 60;
-    const totalRangeMin = totalHours * 60;
-
-    // Dimensiones del lienzo
+  function computeLayout(subjectsCount, totalHours) {
+    const { DAYS_ORDER } = App.schedule;
     const padX = 28;
     const padY = 24;
     const width = 1400;
@@ -150,60 +88,68 @@
     const gridHeight = totalHours * hourRowHeight;
     const timeColWidth = 72;
     const gridWidth = width - padX * 2;
-    const dayColWidth = (gridWidth - timeColWidth) / daysOrder.length;
+    const dayColWidth = (gridWidth - timeColWidth) / DAYS_ORDER.length;
 
-    // Calcular filas de leyenda
-    const legendCols = Math.min(3, Math.max(1, subjects.length));
-    const legendRows = Math.ceil(subjects.length / legendCols);
+    const legendCols = Math.min(3, Math.max(1, subjectsCount));
+    const legendRows = Math.ceil(subjectsCount / legendCols);
     const legendRowHeight = 28;
     const legendTopGap = 20;
     const legendHeight = 26 + legendRows * legendRowHeight;
 
-    const height = padY * 2 + titleHeight + headerHeight + gridHeight + legendTopGap + legendHeight;
-    const scale = 2;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width * scale;
-    canvas.height = height * scale;
-    const ctx = canvas.getContext("2d");
-    ctx.scale(scale, scale);
-
-    const fontStack = "system-ui, -apple-system, 'Segoe UI', 'Inter', sans-serif";
-
-    // Fondo blanco
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
-
-    // Encabezado del documento
-    ctx.fillStyle = "#1f2933";
-    ctx.font = `600 20px ${fontStack}`;
-    ctx.textBaseline = "top";
-    ctx.textAlign = "left";
-    ctx.fillText("Horario Semanal — ISI Plan 2023 (UTN FRC)", padX, padY);
-
-    ctx.fillStyle = "#6b7785";
-    ctx.font = `500 13px ${fontStack}`;
-    const summaryText = `${getCuatLabel(state.currentCuatFilter)}  •  ${subjects.length} ${
-      subjects.length === 1 ? "materia" : "materias"
-    }  •  ${totalHoras} hs/sem`;
-    ctx.fillText(summaryText, padX, padY + 28);
-
-    // Coordenadas base de la grilla
     const gridX = padX;
     const gridY = padY + titleHeight;
     const bodyY = gridY + headerHeight;
+    const legendY = bodyY + gridHeight + legendTopGap;
+    const height = padY * 2 + titleHeight + headerHeight + gridHeight + legendTopGap + legendHeight;
 
-    // Marco exterior de la grilla
-    ctx.save();
-    drawRoundedRect(ctx, gridX, gridY, gridWidth, headerHeight + gridHeight, 6);
-    ctx.clip();
+    return {
+      padX,
+      padY,
+      width,
+      height,
+      headerHeight,
+      hourRowHeight,
+      gridX,
+      gridY,
+      bodyY,
+      gridWidth,
+      gridHeight,
+      timeColWidth,
+      dayColWidth,
+      legendCols,
+      legendRowHeight,
+      legendY
+    };
+  }
+
+  function drawDocumentHeader(ctx, layout, cuatFilter, subjectsCount, totalHoras) {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, layout.width, layout.height);
+
+    ctx.fillStyle = "#1f2933";
+    ctx.font = `600 20px ${FONT_STACK}`;
+    ctx.textBaseline = "top";
+    ctx.textAlign = "left";
+    ctx.fillText("Horario Semanal — ISI Plan 2023 (UTN FRC)", layout.padX, layout.padY);
+
+    ctx.fillStyle = "#6b7785";
+    ctx.font = `500 13px ${FONT_STACK}`;
+    const summaryText = `${getCuatLabel(cuatFilter)}  •  ${subjectsCount} ${
+      subjectsCount === 1 ? "materia" : "materias"
+    }  •  ${totalHoras} hs/sem`;
+    ctx.fillText(summaryText, layout.padX, layout.padY + 28);
+  }
+
+  function drawGridFrame(ctx, layout, minHour, totalHours) {
+    const { DAYS_ORDER } = App.schedule;
+    const { gridX, gridY, bodyY, gridWidth, gridHeight, headerHeight, timeColWidth, dayColWidth, hourRowHeight } = layout;
 
     // Cabecera azul sólida
     ctx.fillStyle = "#2c7bb6";
     ctx.fillRect(gridX, gridY, gridWidth, headerHeight);
 
     ctx.fillStyle = "#ffffff";
-    ctx.font = `600 14px ${fontStack}`;
+    ctx.font = `600 14px ${FONT_STACK}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("Hora", gridX + timeColWidth / 2, gridY + headerHeight / 2);
@@ -215,7 +161,7 @@
     ctx.lineTo(gridX + timeColWidth, gridY + headerHeight);
     ctx.stroke();
 
-    daysOrder.forEach((day, idx) => {
+    DAYS_ORDER.forEach((day, idx) => {
       const colCenter = gridX + timeColWidth + idx * dayColWidth + dayColWidth / 2;
       ctx.fillText(day, colCenter, gridY + headerHeight / 2);
     });
@@ -226,11 +172,9 @@
       ctx.fillStyle = i % 2 === 1 ? "#eef1f5" : "#ffffff";
       ctx.fillRect(gridX + timeColWidth, y, gridWidth - timeColWidth, hourRowHeight);
 
-      // Columna de horas
       ctx.fillStyle = "#f4f6f8";
       ctx.fillRect(gridX, y, timeColWidth, hourRowHeight);
 
-      // Línea horizontal
       ctx.strokeStyle = "#d9dee5";
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -238,9 +182,8 @@
       ctx.lineTo(gridX + gridWidth, y + hourRowHeight);
       ctx.stroke();
 
-      // Etiqueta de hora
       ctx.fillStyle = "#6b7785";
-      ctx.font = `600 12px ${fontStack}`;
+      ctx.font = `600 12px ${FONT_STACK}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       ctx.fillText(`${minHour + i}:00`, gridX + timeColWidth / 2, y + 6);
@@ -249,16 +192,84 @@
     // Divisiones verticales de columnas
     ctx.strokeStyle = "#d9dee5";
     ctx.lineWidth = 1;
-    for (let i = 0; i < daysOrder.length; i++) {
+    for (let i = 0; i < DAYS_ORDER.length; i++) {
       const x = gridX + timeColWidth + i * dayColWidth;
       ctx.beginPath();
       ctx.moveTo(x, bodyY);
       ctx.lineTo(x, bodyY + gridHeight);
       ctx.stroke();
     }
+  }
 
-    // Dibujar tarjetas por día con carriles (lanes) para evitar solapamientos
-    daysOrder.forEach((day, dayIdx) => {
+  function drawSingleCard(ctx, block, pal, cardX, cardY, cardW, cardH, totalLanes) {
+    const { formatShortTime } = App.schedule;
+
+    // Fondo + borde
+    drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 4);
+    ctx.fillStyle = pal.bg;
+    ctx.fill();
+    ctx.lineWidth = 1.25;
+    ctx.strokeStyle = pal.border;
+    ctx.stroke();
+
+    // Barra superior de color sólido y contenido recortado al borde redondeado
+    ctx.save();
+    drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 4);
+    ctx.clip();
+    ctx.fillStyle = pal.border;
+    ctx.fillRect(cardX, cardY, cardW, 4);
+
+    const padCardX = totalLanes > 1 ? 5 : 8;
+    const innerW = Math.max(24, cardW - padCardX * 2);
+
+    // Horario arriba a la izquierda
+    const timeLabel = `${formatShortTime(block.inicio)} — ${formatShortTime(block.fin)}hs`;
+    ctx.fillStyle = pal.text;
+    ctx.font = `600 ${totalLanes > 1 ? 10 : 11}px ${FONT_STACK}`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(timeLabel, cardX + padCardX, cardY + 7, innerW);
+
+    // Código de comisión abajo al centro
+    const comFontSize = totalLanes >= 3 ? 13 : totalLanes === 2 ? 15 : 17;
+    ctx.fillStyle = pal.text;
+    ctx.font = `700 ${comFontSize}px ${FONT_STACK}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText(block.comision, cardX + cardW / 2, cardY + cardH - 5, innerW);
+
+    // Nombre de la materia en el centro
+    const topArea = cardY + 22;
+    const bottomArea = cardY + cardH - (comFontSize + 10);
+    const availH = bottomArea - topArea;
+
+    if (availH >= 12) {
+      const subjFontSize = totalLanes >= 3 ? 10 : totalLanes === 2 ? 11 : 12;
+      const lineHeight = subjFontSize + 3;
+      const maxLines = Math.max(1, Math.min(3, Math.floor(availH / lineHeight)));
+      ctx.font = `600 ${subjFontSize}px ${FONT_STACK}`;
+      ctx.fillStyle = pal.text;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+
+      const lines = wrapTextLines(ctx, block.materiaNombre, innerW, maxLines);
+      const blockTextH = lines.length * lineHeight;
+      let textY = topArea + Math.max(0, (availH - blockTextH) / 2);
+
+      for (const line of lines) {
+        ctx.fillText(line, cardX + cardW / 2, textY, innerW);
+        textY += lineHeight;
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function drawClassCards(ctx, layout, blocks, colorByMateria, minMin, totalRangeMin) {
+    const { DAYS_ORDER, computeColumnLanes } = App.schedule;
+    const { gridX, bodyY, timeColWidth, dayColWidth, gridHeight } = layout;
+
+    DAYS_ORDER.forEach((day, dayIdx) => {
       const dayBlocks = computeColumnLanes(blocks.filter(b => b.dia === day));
       const colX = gridX + timeColWidth + dayIdx * dayColWidth;
 
@@ -274,80 +285,16 @@
         const rawH = ((b.endMin - b.startMin) / totalRangeMin) * gridHeight - 4;
         const cardH = Math.max(46, rawH);
 
-        // Fondo + borde
-        drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 4);
-        ctx.fillStyle = pal.bg;
-        ctx.fill();
-        ctx.lineWidth = 1.25;
-        ctx.strokeStyle = pal.border;
-        ctx.stroke();
-
-        // Barra superior de color sólido
-        ctx.save();
-        drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 4);
-        ctx.clip();
-        ctx.fillStyle = pal.border;
-        ctx.fillRect(cardX, cardY, cardW, 4);
-
-        const padCardX = totalLanes > 1 ? 5 : 8;
-        const innerW = Math.max(24, cardW - padCardX * 2);
-
-        // Horario arriba a la izquierda
-        const timeLabel = `${formatShortTime(b.inicio)} — ${formatShortTime(b.fin)}hs`;
-        ctx.fillStyle = pal.text;
-        ctx.font = `600 ${totalLanes > 1 ? 10 : 11}px ${fontStack}`;
-        ctx.textAlign = "left";
-        ctx.textBaseline = "top";
-        ctx.fillText(timeLabel, cardX + padCardX, cardY + 7, innerW);
-
-        // Código de comisión abajo al centro
-        const comFontSize = totalLanes >= 3 ? 13 : totalLanes === 2 ? 15 : 17;
-        ctx.fillStyle = pal.text;
-        ctx.font = `700 ${comFontSize}px ${fontStack}`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "bottom";
-        ctx.fillText(b.comision, cardX + cardW / 2, cardY + cardH - 5, innerW);
-
-        // Nombre de la materia en el centro
-        const topArea = cardY + 22;
-        const bottomArea = cardY + cardH - (comFontSize + 10);
-        const availH = bottomArea - topArea;
-
-        if (availH >= 12) {
-          const subjFontSize = totalLanes >= 3 ? 10 : totalLanes === 2 ? 11 : 12;
-          const lineHeight = subjFontSize + 3;
-          const maxLines = Math.max(1, Math.min(3, Math.floor(availH / lineHeight)));
-          ctx.font = `600 ${subjFontSize}px ${fontStack}`;
-          ctx.fillStyle = pal.text;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "top";
-
-          const lines = wrapTextLines(ctx, b.materiaNombre, innerW, maxLines);
-          const blockTextH = lines.length * lineHeight;
-          let textY = topArea + Math.max(0, (availH - blockTextH) / 2);
-
-          for (const line of lines) {
-            ctx.fillText(line, cardX + cardW / 2, textY, innerW);
-            textY += lineHeight;
-          }
-        }
-
-        ctx.restore();
+        drawSingleCard(ctx, b, pal, cardX, cardY, cardW, cardH, totalLanes);
       }
     });
+  }
 
-    ctx.restore();
+  function drawLegend(ctx, layout, subjects) {
+    const { gridX, gridWidth, legendY, legendCols, legendRowHeight } = layout;
 
-    // Borde exterior de la grilla
-    drawRoundedRect(ctx, gridX, gridY, gridWidth, headerHeight + gridHeight, 6);
-    ctx.strokeStyle = "#d9dee5";
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    // Leyenda de materias abajo
-    const legendY = bodyY + gridHeight + legendTopGap;
     ctx.fillStyle = "#6b7785";
-    ctx.font = `600 12px ${fontStack}`;
+    ctx.font = `600 12px ${FONT_STACK}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     ctx.fillText("Referencias de materias", gridX, legendY);
@@ -359,7 +306,6 @@
       const lx = gridX + col * legendColW;
       const ly = legendY + 24 + row * legendRowHeight;
 
-      // Cuadrado de color
       drawRoundedRect(ctx, lx, ly + 1, 14, 14, 3);
       ctx.fillStyle = subj.palette.bg;
       ctx.fill();
@@ -367,19 +313,18 @@
       ctx.strokeStyle = subj.palette.border;
       ctx.stroke();
 
-      // Texto de referencia
       const label = `${subj.nombre} (${subj.comision} • ${subj.periodo} • ${subj.carga} hs)`;
       ctx.fillStyle = "#1f2933";
-      ctx.font = `500 12px ${fontStack}`;
+      ctx.font = `500 12px ${FONT_STACK}`;
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
-      const maxLabelW = legendColW - 28;
-      const [fitted] = wrapTextLines(ctx, label, maxLabelW, 1);
+      const [fitted] = wrapTextLines(ctx, label, legendColW - 28, 1);
       ctx.fillText(fitted || label, lx + 22, ly + 2);
     });
+  }
 
-    // Descargar PNG
-    const suffix = state.currentCuatFilter === "all" ? "" : `-${state.currentCuatFilter}`;
+  function downloadCanvasPng(canvas, cuatFilter) {
+    const suffix = cuatFilter === "all" ? "" : `-${cuatFilter}`;
     const filename = `horario-isi-2023${suffix}.png`;
 
     function triggerDownload(url, shouldRevoke) {
@@ -397,12 +342,48 @@
     if (typeof canvas.toBlob === "function") {
       canvas.toBlob(blob => {
         if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        triggerDownload(url, true);
+        triggerDownload(URL.createObjectURL(blob), true);
       }, "image/png");
     } else {
       triggerDownload(canvas.toDataURL("image/png"), false);
     }
+  }
+
+  function exportSchedulePng() {
+    const { state } = App.store;
+    const { computeHourRange } = App.schedule;
+
+    const { subjects, blocks, colorByMateria, totalHoras } = collectExportData();
+    if (subjects.length === 0 || blocks.length === 0) return;
+
+    const { minHour, totalHours, minMin, totalRangeMin } = computeHourRange(blocks);
+    const layout = computeLayout(subjects.length, totalHours);
+    const scale = 2;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = layout.width * scale;
+    canvas.height = layout.height * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(scale, scale);
+
+    drawDocumentHeader(ctx, layout, state.currentCuatFilter, subjects.length, totalHoras);
+
+    // Marco recortado de la grilla + tarjetas
+    ctx.save();
+    drawRoundedRect(ctx, layout.gridX, layout.gridY, layout.gridWidth, layout.headerHeight + layout.gridHeight, 6);
+    ctx.clip();
+    drawGridFrame(ctx, layout, minHour, totalHours);
+    drawClassCards(ctx, layout, blocks, colorByMateria, minMin, totalRangeMin);
+    ctx.restore();
+
+    // Borde exterior de la grilla
+    drawRoundedRect(ctx, layout.gridX, layout.gridY, layout.gridWidth, layout.headerHeight + layout.gridHeight, 6);
+    ctx.strokeStyle = "#d9dee5";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    drawLegend(ctx, layout, subjects);
+    downloadCanvasPng(canvas, state.currentCuatFilter);
   }
 
   App.exportSchedule = {

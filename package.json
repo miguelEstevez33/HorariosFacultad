@@ -6,6 +6,8 @@
   "author": "ISI Plan 2023 (UTN FRC)",
   "private": true,
   "scripts": {
+    "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage",
     "sync": "node server/sync-server.js",
     "electron": "electron .",
     "icon:gen": "node scripts/generate-icon.js",

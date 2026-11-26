@@ -18,6 +18,20 @@
     }
   }
 
+  function safeSetStorage(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // localStorage no disponible o cuota excedida
+    }
+  }
+
+  function omitKey(obj, keyToRemove) {
+    if (!(keyToRemove in obj)) return obj;
+    const { [keyToRemove]: _removed, ...rest } = obj;
+    return rest;
+  }
+
   let initialCursos = loadFromStorage(STORAGE_KEYS.CURSOS, {});
   if (Array.isArray(initialCursos)) {
     initialCursos = {};
@@ -45,8 +59,16 @@
   };
 
   function saveToStorage() {
-    localStorage.setItem(STORAGE_KEYS.ESTADOS, JSON.stringify(state.estadosAlumno));
-    localStorage.setItem(STORAGE_KEYS.CURSOS, JSON.stringify(state.cursosSeleccionados));
+    safeSetStorage(STORAGE_KEYS.ESTADOS, JSON.stringify(state.estadosAlumno));
+    safeSetStorage(STORAGE_KEYS.CURSOS, JSON.stringify(state.cursosSeleccionados));
+  }
+
+  function removeSelectedCourse(materiaId, clearCursandoState = false) {
+    state.cursosSeleccionados = omitKey(state.cursosSeleccionados, materiaId);
+    state.ordenCursosSeleccionados = state.ordenCursosSeleccionados.filter(id => id !== materiaId);
+    if (clearCursandoState && state.estadosAlumno[materiaId] === "cursando") {
+      state.estadosAlumno = omitKey(state.estadosAlumno, materiaId);
+    }
   }
 
   function getEstado(id) {
@@ -74,21 +96,20 @@
   function setEstadoMateria(id, nuevoEstado) {
     const { MATERIAS_MAP } = App.data;
 
-    if (nuevoEstado === "none") {
-      delete state.estadosAlumno[id];
-    } else {
-      state.estadosAlumno[id] = nuevoEstado;
-    }
+    state.estadosAlumno =
+      nuevoEstado === "none"
+        ? omitKey(state.estadosAlumno, id)
+        : { ...state.estadosAlumno, [id]: nuevoEstado };
 
     if (nuevoEstado === "aprobado" || nuevoEstado === "regular") {
-      delete state.cursosSeleccionados[id];
+      removeSelectedCourse(id, false);
     }
 
     // Limpiar cualquier materia seleccionada en el horario que haya dejado de estar habilitada
     for (const mId of Object.keys(state.cursosSeleccionados)) {
       const mat = MATERIAS_MAP[mId];
       if (mat && !App.correlativas.evaluarHabilitacion(mat).habilitadaParaCursar) {
-        delete state.cursosSeleccionados[mId];
+        removeSelectedCourse(mId, false);
       }
     }
 
@@ -98,49 +119,53 @@
 
   function selectComisionMateria(materiaId, optionId) {
     if (!optionId) {
-      delete state.cursosSeleccionados[materiaId];
-      state.ordenCursosSeleccionados = state.ordenCursosSeleccionados.filter(id => id !== materiaId);
-      if (state.estadosAlumno[materiaId] === "cursando") {
-        delete state.estadosAlumno[materiaId];
-      }
+      removeSelectedCourse(materiaId, true);
     } else {
-      state.cursosSeleccionados[materiaId] = optionId;
-      state.ordenCursosSeleccionados = state.ordenCursosSeleccionados.filter(id => id !== materiaId);
-      state.ordenCursosSeleccionados.push(materiaId);
-      state.estadosAlumno[materiaId] = "cursando";
+      state.cursosSeleccionados = { ...state.cursosSeleccionados, [materiaId]: optionId };
+      state.ordenCursosSeleccionados = [
+        ...state.ordenCursosSeleccionados.filter(id => id !== materiaId),
+        materiaId
+      ];
+      state.estadosAlumno = { ...state.estadosAlumno, [materiaId]: "cursando" };
     }
     saveToStorage();
     if (App.renderAll) App.renderAll();
   }
 
   function killMateriaInscripta(materiaId) {
-    delete state.cursosSeleccionados[materiaId];
-    state.ordenCursosSeleccionados = state.ordenCursosSeleccionados.filter(id => id !== materiaId);
-    if (state.estadosAlumno[materiaId] === "cursando") {
-      delete state.estadosAlumno[materiaId];
-    }
+    removeSelectedCourse(materiaId, true);
     saveToStorage();
     if (App.renderAll) App.renderAll();
   }
 
   function markNivelEstado(nivel, estado) {
     const { MATERIAS } = App.data;
+    const nextEstados = { ...state.estadosAlumno };
+    const idsToRemove = new Set();
+
     MATERIAS.forEach(m => {
       if (m.nivel === nivel && !m.electiva) {
-        state.estadosAlumno[m.id] = estado;
-        delete state.cursosSeleccionados[m.id];
+        nextEstados[m.id] = estado;
+        idsToRemove.add(m.id);
       }
     });
+
+    state.estadosAlumno = nextEstados;
+    state.cursosSeleccionados = Object.fromEntries(
+      Object.entries(state.cursosSeleccionados).filter(([mId]) => !idsToRemove.has(mId))
+    );
+    state.ordenCursosSeleccionados = state.ordenCursosSeleccionados.filter(id => !idsToRemove.has(id));
     saveToStorage();
     if (App.renderAll) App.renderAll();
   }
 
   function clearPlan() {
-    for (const mId of Object.keys(state.cursosSeleccionados)) {
-      if (state.estadosAlumno[mId] === "cursando") {
-        delete state.estadosAlumno[mId];
-      }
-    }
+    const selectedIds = new Set(Object.keys(state.cursosSeleccionados));
+    state.estadosAlumno = Object.fromEntries(
+      Object.entries(state.estadosAlumno).filter(
+        ([mId, st]) => !(selectedIds.has(mId) && st === "cursando")
+      )
+    );
     state.cursosSeleccionados = {};
     state.ordenCursosSeleccionados = [];
     saveToStorage();
@@ -157,16 +182,54 @@
 
   function setHorariosOverride(horariosMaterias) {
     state.horariosOverride = horariosMaterias;
-    localStorage.setItem(STORAGE_KEYS.HORARIOS, JSON.stringify(horariosMaterias));
+    safeSetStorage(STORAGE_KEYS.HORARIOS, JSON.stringify(horariosMaterias));
   }
 
   function applySyncedData(data) {
-    state.estadosAlumno = data.estadosAlumno || {};
-    state.cursosSeleccionados = data.cursosSeleccionados || {};
+    state.estadosAlumno = data.estadosAlumno ? { ...data.estadosAlumno } : {};
+    state.cursosSeleccionados = data.cursosSeleccionados ? { ...data.cursosSeleccionados } : {};
     state.ordenCursosSeleccionados = Array.isArray(data.ordenCursosSeleccionados)
-      ? data.ordenCursosSeleccionados
+      ? [...data.ordenCursosSeleccionados]
       : Object.keys(state.cursosSeleccionados);
     saveToStorage();
+  }
+
+  function setCuatFilter(cuat) {
+    state.currentCuatFilter = cuat;
+  }
+
+  function setActivePreviewMateria(materiaId) {
+    state.activePreviewMateriaId = materiaId || null;
+    state.hoveredPreviewOptionId = null;
+  }
+
+  function toggleActivePreviewMateria(materiaId) {
+    state.activePreviewMateriaId = state.activePreviewMateriaId === materiaId ? null : materiaId;
+    state.hoveredPreviewOptionId = null;
+  }
+
+  function setHoveredPreviewOption(optionId) {
+    state.hoveredPreviewOptionId = optionId || null;
+  }
+
+  function toggleShowOnlyIsiInPreview() {
+    state.showOnlyIsiInPreview = !state.showOnlyIsiInPreview;
+  }
+
+  function setSelectedCorrelativaMateria(materiaId) {
+    state.selectedCorrelativaMateriaId = materiaId;
+  }
+
+  function getSyncUrl() {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.SYNC_URL) || "";
+    } catch {
+      return "";
+    }
+  }
+
+  function setSyncUrl(url) {
+    safeSetStorage(STORAGE_KEYS.SYNC_URL, url);
   }
 
   App.store = {
@@ -184,6 +247,14 @@
     clearPlan,
     resetAll,
     setHorariosOverride,
-    applySyncedData
+    applySyncedData,
+    setCuatFilter,
+    setActivePreviewMateria,
+    toggleActivePreviewMateria,
+    setHoveredPreviewOption,
+    toggleShowOnlyIsiInPreview,
+    setSelectedCorrelativaMateria,
+    getSyncUrl,
+    setSyncUrl
   };
 })(window);

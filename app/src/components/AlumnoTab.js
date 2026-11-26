@@ -3,14 +3,39 @@
   const App = (global.App = global.App || {});
   App.components = App.components || {};
 
+  function matchesFilters(m, { filterNivel, filterEstado, searchQuery }) {
+    if (filterNivel === "electivas" && !m.electiva) return false;
+    if (filterNivel !== "all" && filterNivel !== "electivas" && String(m.nivel) !== filterNivel) {
+      return false;
+    }
+
+    const st = App.store.getEstado(m.id);
+    if (filterEstado !== "all" && st !== filterEstado) return false;
+
+    if (searchQuery) {
+      const matchNombre = m.nombre.toLowerCase().includes(searchQuery);
+      const matchNum = m.numero.toLowerCase().includes(searchQuery);
+      if (!matchNombre && !matchNum) return false;
+    }
+    return true;
+  }
+
   function renderCard(m) {
+    const { ESTADOS_OPCIONES } = App.data;
     const { getEstado, getOpcionesComision, state } = App.store;
     const { formatCorrelativasPills } = App.correlativas;
 
     const st = getEstado(m.id);
     const comElegida = state.cursosSeleccionados[m.id];
-    const opciones = getOpcionesComision(m.id);
-    const objCom = opciones.find(o => o.id === comElegida);
+    const objCom = comElegida ? getOpcionesComision(m.id).find(o => o.id === comElegida) : null;
+
+    const statusButtonsHtml = ESTADOS_OPCIONES.map(
+      opt => `
+        <button type="button" class="status-btn ${st === opt.value ? "active" : ""}" data-id="${m.id}" data-state="${opt.value}">
+          ${opt.label}
+        </button>
+      `
+    ).join("");
 
     return `
       <div class="subject-card state-${st}">
@@ -32,94 +57,65 @@
         </div>
 
         <div class="status-selector" role="group" aria-label="Estado de ${m.nombre}">
-          <button type="button" class="status-btn ${st === "none" ? "active" : ""}" data-id="${m.id}" data-state="none">
-            Sin cursar
-          </button>
-          <button type="button" class="status-btn ${st === "cursando" ? "active" : ""}" data-id="${m.id}" data-state="cursando">
-            Cursando
-          </button>
-          <button type="button" class="status-btn ${st === "regular" ? "active" : ""}" data-id="${m.id}" data-state="regular">
-            Regular
-          </button>
-          <button type="button" class="status-btn ${st === "aprobado" ? "active" : ""}" data-id="${m.id}" data-state="aprobado">
-            Aprobado
-          </button>
+          ${statusButtonsHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderLevelSection(niv, materiasNivel) {
+    return `
+      <div class="level-section">
+        <div class="level-header">
+          <div class="level-title">
+            <span>${niv.label}</span>
+            <span class="level-badge">${materiasNivel.length} asignaturas</span>
+          </div>
+        </div>
+        <div class="subjects-grid">
+          ${materiasNivel.map(renderCard).join("")}
         </div>
       </div>
     `;
   }
 
   function render() {
-    const { MATERIAS } = App.data;
-    const { getEstado, setEstadoMateria } = App.store;
-
+    const { MATERIAS, NIVELES } = App.data;
     const container = document.getElementById("alumno-levels-container");
-    const searchQuery = document.getElementById("search-alumno").value.trim().toLowerCase();
-    const filterNivel = document.getElementById("filter-nivel-alumno").value;
-    const filterEstado = document.getElementById("filter-estado-alumno").value;
+    if (!container) return;
 
-    const niveles = [
-      { key: 1, titulo: "1° Año — Primer Nivel" },
-      { key: 2, titulo: "2° Año — Segundo Nivel" },
-      { key: 3, titulo: "3° Año — Tercer Nivel" },
-      { key: 4, titulo: "4° Año — Cuarto Nivel" },
-      { key: 5, titulo: "5° Año — Quinto Nivel" }
-    ];
+    const filters = {
+      searchQuery: document.getElementById("search-alumno").value.trim().toLowerCase(),
+      filterNivel: document.getElementById("filter-nivel-alumno").value,
+      filterEstado: document.getElementById("filter-estado-alumno").value
+    };
 
-    let html = "";
+    const html = NIVELES.map(niv => {
+      const materiasNivel = MATERIAS.filter(m => m.nivel === niv.nivel && matchesFilters(m, filters));
+      return materiasNivel.length > 0 ? renderLevelSection(niv, materiasNivel) : "";
+    }).join("");
 
-    for (const niv of niveles) {
-      const materiasNivel = MATERIAS.filter(m => {
-        if (m.nivel !== niv.key) return false;
-        if (filterNivel === "electivas" && !m.electiva) return false;
-        if (filterNivel !== "all" && filterNivel !== "electivas" && String(m.nivel) !== filterNivel) return false;
-
-        const st = getEstado(m.id);
-        if (filterEstado !== "all" && st !== filterEstado) return false;
-
-        if (searchQuery) {
-          const matchNombre = m.nombre.toLowerCase().includes(searchQuery);
-          const matchNum = m.numero.toLowerCase().includes(searchQuery);
-          if (!matchNombre && !matchNum) return false;
-        }
-        return true;
-      });
-
-      if (materiasNivel.length === 0) continue;
-
-      html += `
-        <div class="level-section">
-          <div class="level-header">
-            <div class="level-title">
-              <span>${niv.titulo}</span>
-              <span class="level-badge">${materiasNivel.length} asignaturas</span>
-            </div>
-          </div>
-          <div class="subjects-grid">
-            ${materiasNivel.map(m => renderCard(m)).join("")}
-          </div>
-        </div>
-      `;
-    }
-
-    if (!html) {
-      html = `<div class="level-section" style="padding: 2rem; text-align: center; color: var(--text-muted);">
+    container.innerHTML =
+      html ||
+      `<div class="level-section" style="padding: 2rem; text-align: center; color: var(--text-muted);">
         No se encontraron materias con los filtros seleccionados.
       </div>`;
-    }
-
-    container.innerHTML = html;
-
-    container.querySelectorAll(".status-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const id = btn.getAttribute("data-id");
-        const st = btn.getAttribute("data-state");
-        setEstadoMateria(id, st);
-      });
-    });
   }
 
   function bindEvents() {
+    const container = document.getElementById("alumno-levels-container");
+    if (container) {
+      container.addEventListener("click", e => {
+        const btn = e.target.closest(".status-btn");
+        if (!btn) return;
+        const id = btn.getAttribute("data-id");
+        const st = btn.getAttribute("data-state");
+        if (id && st) {
+          App.store.setEstadoMateria(id, st);
+        }
+      });
+    }
+
     document.getElementById("btn-go-cursado").addEventListener("click", () => {
       App.switchTab("cursado");
     });

@@ -1,43 +1,15 @@
-// Componente: Modal y cliente de Sincronización Bidireccional PC ↔ Celular (Capacitor APK)
+// Componente: Modal de Sincronización Bidireccional PC ↔ Celular (Capacitor APK)
 (function (global) {
   const App = (global.App = global.App || {});
   App.components = App.components || {};
 
-  function isNativeMobileApp() {
-    return Boolean(
-      (typeof window !== "undefined" &&
-        window.Capacitor &&
-        typeof window.Capacitor.isNativePlatform === "function" &&
-        window.Capacitor.isNativePlatform()) ||
-        /Android|iPhone|iPad/i.test(navigator.userAgent)
-    );
-  }
-
-  function getDefaultSyncUrl() {
-    const { STORAGE_KEYS } = App.store;
-    const saved = localStorage.getItem(STORAGE_KEYS.SYNC_URL);
-    if (saved) return saved;
-    if (!isNativeMobileApp() && window.location && window.location.protocol.startsWith("http")) {
-      return window.location.origin;
-    }
-    return isNativeMobileApp() ? "http://192.168.1.100:3456" : "http://localhost:3456";
-  }
-
-  function normalizeSyncUrl(raw) {
-    let url = (raw || "").trim().replace(/\/+$/, "");
-    if (!url) return "";
-    if (!/^https?:\/\//i.test(url)) {
-      url = "http://" + url;
-    }
-    return url;
-  }
-
-  function setSyncFeedback(message, type = "info") {
-    const el = document.getElementById("sync-feedback-msg");
-    if (!el) return;
-    el.textContent = message;
-    el.className = `sync-feedback sync-feedback-${type}`;
-    el.style.display = "block";
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   function formatSyncTimestamp(isoStr) {
@@ -56,58 +28,116 @@
     }
   }
 
-  async function testSyncConnection(silent = false) {
-    const { STORAGE_KEYS } = App.store;
-    const urlInput = document.getElementById("sync-server-url");
-    const statusEl = document.getElementById("sync-conn-status");
-    const lastInfoEl = document.getElementById("sync-last-info");
-    const ipsHintEl = document.getElementById("sync-ips-hint");
-    const baseUrl = normalizeSyncUrl(urlInput ? urlInput.value : "");
+  function queryModalElements() {
+    return {
+      btnOpen: document.getElementById("btn-open-sync"),
+      modal: document.getElementById("sync-modal"),
+      btnClose: document.getElementById("btn-close-sync-modal"),
+      btnCloseFooter: document.getElementById("btn-close-sync-modal-footer"),
+      urlInput: document.getElementById("sync-server-url"),
+      btnTest: document.getElementById("btn-sync-test"),
+      btnPush: document.getElementById("btn-sync-push"),
+      btnPull: document.getElementById("btn-sync-pull"),
+      statusEl: document.getElementById("sync-conn-status"),
+      lastInfoEl: document.getElementById("sync-last-info"),
+      ipsHintEl: document.getElementById("sync-ips-hint"),
+      feedbackEl: document.getElementById("sync-feedback-msg"),
+      deviceLabel: document.getElementById("sync-device-label"),
+      pushTitle: document.getElementById("sync-push-title"),
+      pushDesc: document.getElementById("sync-push-desc"),
+      pullTitle: document.getElementById("sync-pull-title"),
+      pullDesc: document.getElementById("sync-pull-desc")
+    };
+  }
 
-    if (!baseUrl) {
-      if (!silent) {
-        setSyncFeedback("Ingresá la IP y puerto del servidor de la PC (ej: http://192.168.1.45:3456).", "error");
-      }
-      return false;
+  function setSyncFeedback(els, message, type = "info") {
+    if (!els.feedbackEl) return;
+    els.feedbackEl.textContent = message;
+    els.feedbackEl.className = `sync-feedback sync-feedback-${type}`;
+    els.feedbackEl.style.display = "block";
+  }
+
+  function configureDeviceLabels(els, isMobile) {
+    if (els.deviceLabel) {
+      els.deviceLabel.textContent = isMobile ? "📱 Modo: App Celular (APK)" : "💻 Modo: PC / Navegador";
+    }
+    if (!els.pushTitle || !els.pushDesc || !els.pullTitle || !els.pullDesc) return;
+
+    if (isMobile) {
+      els.pushTitle.textContent = "Enviar del Celular → PC";
+      els.pushDesc.textContent = "Sube tus materias y horarios modificados en el celular para actualizar la PC.";
+      els.pullTitle.textContent = "Traer de la PC → Celular";
+      els.pullDesc.textContent =
+        "Descarga tus materias, estados y los horarios actualizados (schedules.js) desde la PC.";
+    } else {
+      els.pushTitle.textContent = "Enviar de la PC → Celular";
+      els.pushDesc.textContent =
+        "Guarda el estado actual de la PC en el servidor local para que el celular lo descargue.";
+      els.pullTitle.textContent = "Traer del Celular → PC";
+      els.pullDesc.textContent = "Importa en esta PC los cambios de materias y horarios enviados desde el celular.";
+    }
+  }
+
+  function renderConnectionInfo(els, data) {
+    if (els.statusEl) els.statusEl.textContent = "🟢 Conectado a la PC";
+
+    if (els.ipsHintEl && Array.isArray(data.ips) && data.ips.length > 0) {
+      const safePort = escapeHtml(data.port);
+      const urls = data.ips.map(ip => `<code>http://${escapeHtml(ip)}:${safePort}</code>`).join(" o ");
+      els.ipsHintEl.innerHTML = `En tu celular (conectado al mismo Wi-Fi), ingresá: ${urls}`;
     }
 
-    localStorage.setItem(STORAGE_KEYS.SYNC_URL, baseUrl);
-    if (statusEl) statusEl.textContent = "🟡 Conectando...";
+    if (!els.lastInfoEl) return;
+
+    if (data.lastSync && data.lastSync.updatedAt) {
+      const origen =
+        data.lastSync.source === "mobile" ? "Celular" : data.lastSync.source === "pc" ? "PC" : "Otro";
+      const safeTimestamp = escapeHtml(formatSyncTimestamp(data.lastSync.updatedAt));
+      const safeEstados = escapeHtml(data.lastSync.estadosCount);
+      const safeCursos = escapeHtml(data.lastSync.cursosCount);
+      els.lastInfoEl.innerHTML = `Última sincronización en el servidor: <strong>${safeTimestamp}</strong> (enviada desde <strong>${origen}</strong> — ${safeEstados} materias con estado, ${safeCursos} cursos inscriptos).`;
+    } else {
+      els.lastInfoEl.textContent =
+        "Servidor conectado. Todavía no hay datos guardados en el servidor: tocá 'Enviar' desde el dispositivo que tenga tus datos actualizados.";
+    }
+  }
+
+  function resolveBaseUrl(els, emptyErrorMsg, silent = false) {
+    const baseUrl = App.syncClient.normalizeSyncUrl(els.urlInput ? els.urlInput.value : "");
+    if (!baseUrl) {
+      if (!silent) setSyncFeedback(els, emptyErrorMsg, "error");
+      return "";
+    }
+    App.store.setSyncUrl(baseUrl);
+    return baseUrl;
+  }
+
+  async function testSyncConnection(els, silent = false) {
+    const baseUrl = resolveBaseUrl(
+      els,
+      "Ingresá la IP y puerto del servidor de la PC (ej: http://192.168.1.45:3456).",
+      silent
+    );
+    if (!baseUrl) return false;
+
+    if (els.statusEl) els.statusEl.textContent = "🟡 Conectando...";
 
     try {
-      const res = await fetch(`${baseUrl}/api/info`, { method: "GET" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-
-      if (statusEl) statusEl.textContent = "🟢 Conectado a la PC";
-      if (ipsHintEl && Array.isArray(data.ips) && data.ips.length > 0) {
-        const urls = data.ips.map(ip => `<code>http://${ip}:${data.port}</code>`).join(" o ");
-        ipsHintEl.innerHTML = `En tu celular (conectado al mismo Wi-Fi), ingresá: ${urls}`;
-      }
-
-      if (lastInfoEl) {
-        if (data.lastSync && data.lastSync.updatedAt) {
-          const origen =
-            data.lastSync.source === "mobile" ? "Celular" : data.lastSync.source === "pc" ? "PC" : "Otro";
-          lastInfoEl.innerHTML = `Última sincronización en el servidor: <strong>${formatSyncTimestamp(data.lastSync.updatedAt)}</strong> (enviada desde <strong>${origen}</strong> — ${data.lastSync.estadosCount} materias con estado, ${data.lastSync.cursosCount} cursos inscriptos).`;
-        } else {
-          lastInfoEl.textContent =
-            "Servidor conectado. Todavía no hay datos guardados en el servidor: tocá 'Enviar' desde el dispositivo que tenga tus datos actualizados.";
-        }
-      }
-
+      const data = await App.syncClient.fetchServerInfo(baseUrl);
+      renderConnectionInfo(els, data);
       if (!silent) {
-        setSyncFeedback("✅ Conexión exitosa con el servidor de sincronización.", "success");
+        setSyncFeedback(els, "✅ Conexión exitosa con el servidor de sincronización.", "success");
       }
       return true;
     } catch {
-      if (statusEl) statusEl.textContent = "🔴 Sin conexión";
-      if (lastInfoEl) {
-        lastInfoEl.textContent =
+      if (els.statusEl) els.statusEl.textContent = "🔴 Sin conexión";
+      if (els.lastInfoEl) {
+        els.lastInfoEl.textContent =
           "No se pudo conectar. Asegurate de correr 'npm run sync' en la PC y que ambos dispositivos estén en la misma red Wi-Fi.";
       }
       if (!silent) {
         setSyncFeedback(
+          els,
           `❌ No se pudo conectar a ${baseUrl}. Verificá que 'npm run sync' esté corriendo en tu PC y el Firewall permita el puerto 3456.`,
           "error"
         );
@@ -116,63 +146,44 @@
     }
   }
 
-  async function pushSyncData() {
-    const { STORAGE_KEYS, state } = App.store;
-    const urlInput = document.getElementById("sync-server-url");
-    const baseUrl = normalizeSyncUrl(urlInput ? urlInput.value : "");
-    if (!baseUrl) {
-      setSyncFeedback("Ingresá primero la dirección del servidor de la PC.", "error");
-      return;
-    }
-    localStorage.setItem(STORAGE_KEYS.SYNC_URL, baseUrl);
+  async function pushSyncData(els) {
+    const baseUrl = resolveBaseUrl(els, "Ingresá primero la dirección del servidor de la PC.");
+    if (!baseUrl) return;
 
-    const source = isNativeMobileApp() ? "mobile" : "pc";
-    setSyncFeedback("⏳ Enviando materias y horarios...", "info");
+    const { state } = App.store;
+    const source = App.syncClient.isNativeMobileApp() ? "mobile" : "pc";
+    setSyncFeedback(els, "⏳ Enviando materias y horarios...", "info");
 
     try {
-      const res = await fetch(`${baseUrl}/api/sync`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          estadosAlumno: state.estadosAlumno,
-          cursosSeleccionados: state.cursosSeleccionados,
-          ordenCursosSeleccionados: state.ordenCursosSeleccionados,
-          source
-        })
+      await App.syncClient.pushState(baseUrl, {
+        estadosAlumno: state.estadosAlumno,
+        cursosSeleccionados: state.cursosSeleccionados,
+        ordenCursosSeleccionados: state.ordenCursosSeleccionados,
+        source
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || "Error al guardar");
 
-      await testSyncConnection(true);
+      await testSyncConnection(els, true);
       setSyncFeedback(
+        els,
         source === "mobile"
           ? "✅ ¡Datos enviados a la PC! Ahora en la PC abrí Sincronizar y tocá 'Traer del Celular → PC'."
           : "✅ ¡Datos guardados en el servidor! Ahora en la app del celular tocá 'Traer de la PC → Celular'.",
         "success"
       );
     } catch (err) {
-      setSyncFeedback(`❌ Error al enviar datos a ${baseUrl}: ${err.message}`, "error");
+      setSyncFeedback(els, `❌ Error al enviar datos a ${baseUrl}: ${err.message}`, "error");
     }
   }
 
-  async function pullSyncData() {
-    const { STORAGE_KEYS, setHorariosOverride, applySyncedData } = App.store;
-    const urlInput = document.getElementById("sync-server-url");
-    const baseUrl = normalizeSyncUrl(urlInput ? urlInput.value : "");
-    if (!baseUrl) {
-      setSyncFeedback("Ingresá primero la dirección del servidor de la PC.", "error");
-      return;
-    }
-    localStorage.setItem(STORAGE_KEYS.SYNC_URL, baseUrl);
+  async function pullSyncData(els) {
+    const baseUrl = resolveBaseUrl(els, "Ingresá primero la dirección del servidor de la PC.");
+    if (!baseUrl) return;
 
-    setSyncFeedback("⏳ Descargando materias y horarios...", "info");
+    const { setHorariosOverride, applySyncedData } = App.store;
+    setSyncFeedback(els, "⏳ Descargando materias y horarios...", "info");
 
     try {
-      const res = await fetch(`${baseUrl}/api/sync`, { method: "GET" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || "Error al descargar");
+      const data = await App.syncClient.pullState(baseUrl);
 
       let horariosActualizados = false;
       if (data.horariosMaterias && typeof data.horariosMaterias === "object") {
@@ -185,93 +196,64 @@
       }
 
       if (App.renderAll) App.renderAll();
-      await testSyncConnection(true);
+      await testSyncConnection(els, true);
 
       if (data.updatedAt) {
         setSyncFeedback(
+          els,
           `✅ ¡Sincronización completada! Se actualizaron tus materias, comisiones${horariosActualizados ? " y los horarios de la PC" : ""}.`,
           "success"
         );
       } else if (horariosActualizados) {
         setSyncFeedback(
+          els,
           "✅ Se actualizaron los horarios base (schedules.js) desde la PC. Todavía no había estados de materias subidos en el servidor.",
           "success"
         );
       } else {
-        setSyncFeedback("⚠️ No había datos nuevos guardados en el servidor.", "info");
+        setSyncFeedback(els, "⚠️ No había datos nuevos guardados en el servidor.", "info");
       }
     } catch (err) {
-      setSyncFeedback(`❌ Error al descargar desde ${baseUrl}: ${err.message}`, "error");
+      setSyncFeedback(els, `❌ Error al descargar desde ${baseUrl}: ${err.message}`, "error");
     }
   }
 
   function bindEvents() {
-    const btnOpen = document.getElementById("btn-open-sync");
-    const modal = document.getElementById("sync-modal");
-    const btnClose = document.getElementById("btn-close-sync-modal");
-    const btnCloseFooter = document.getElementById("btn-close-sync-modal-footer");
-    const urlInput = document.getElementById("sync-server-url");
-    const btnTest = document.getElementById("btn-sync-test");
-    const btnPush = document.getElementById("btn-sync-push");
-    const btnPull = document.getElementById("btn-sync-pull");
+    const els = queryModalElements();
+    if (!els.modal) return;
 
-    if (!modal) return;
-
-    const isMobile = isNativeMobileApp();
-    const deviceLabel = document.getElementById("sync-device-label");
-    const pushTitle = document.getElementById("sync-push-title");
-    const pushDesc = document.getElementById("sync-push-desc");
-    const pullTitle = document.getElementById("sync-pull-title");
-    const pullDesc = document.getElementById("sync-pull-desc");
-
-    if (deviceLabel) {
-      deviceLabel.textContent = isMobile ? "📱 Modo: App Celular (APK)" : "💻 Modo: PC / Navegador";
-    }
-    if (pushTitle && pushDesc && pullTitle && pullDesc) {
-      if (isMobile) {
-        pushTitle.textContent = "Enviar del Celular → PC";
-        pushDesc.textContent = "Sube tus materias y horarios modificados en el celular para actualizar la PC.";
-        pullTitle.textContent = "Traer de la PC → Celular";
-        pullDesc.textContent =
-          "Descarga tus materias, estados y los horarios actualizados (schedules.js) desde la PC.";
-      } else {
-        pushTitle.textContent = "Enviar de la PC → Celular";
-        pushDesc.textContent =
-          "Guarda el estado actual de la PC en el servidor local para que el celular lo descargue.";
-        pullTitle.textContent = "Traer del Celular → PC";
-        pullDesc.textContent = "Importa en esta PC los cambios de materias y horarios enviados desde el celular.";
-      }
-    }
+    configureDeviceLabels(els, App.syncClient.isNativeMobileApp());
 
     function openSyncModal() {
-      if (urlInput) {
-        urlInput.value = getDefaultSyncUrl();
+      if (els.urlInput) {
+        els.urlInput.value = App.syncClient.getDefaultSyncUrl();
       }
-      const fb = document.getElementById("sync-feedback-msg");
-      if (fb) fb.style.display = "none";
-      modal.style.display = "flex";
-      testSyncConnection(true);
+      if (els.feedbackEl) {
+        els.feedbackEl.style.display = "none";
+      }
+      els.modal.style.display = "flex";
+      testSyncConnection(els, true);
     }
 
     function closeSyncModal() {
-      modal.style.display = "none";
+      els.modal.style.display = "none";
     }
 
-    if (btnOpen) btnOpen.addEventListener("click", openSyncModal);
-    if (btnClose) btnClose.addEventListener("click", closeSyncModal);
-    if (btnCloseFooter) btnCloseFooter.addEventListener("click", closeSyncModal);
-    modal.addEventListener("click", e => {
-      if (e.target === modal) closeSyncModal();
+    if (els.btnOpen) els.btnOpen.addEventListener("click", openSyncModal);
+    if (els.btnClose) els.btnClose.addEventListener("click", closeSyncModal);
+    if (els.btnCloseFooter) els.btnCloseFooter.addEventListener("click", closeSyncModal);
+    els.modal.addEventListener("click", e => {
+      if (e.target === els.modal) closeSyncModal();
     });
     document.addEventListener("keydown", e => {
-      if (e.key === "Escape" && modal.style.display !== "none") {
+      if (e.key === "Escape" && els.modal.style.display !== "none") {
         closeSyncModal();
       }
     });
 
-    if (btnTest) btnTest.addEventListener("click", () => testSyncConnection(false));
-    if (btnPush) btnPush.addEventListener("click", pushSyncData);
-    if (btnPull) btnPull.addEventListener("click", pullSyncData);
+    if (els.btnTest) els.btnTest.addEventListener("click", () => testSyncConnection(els, false));
+    if (els.btnPush) els.btnPush.addEventListener("click", () => pushSyncData(els));
+    if (els.btnPull) els.btnPull.addEventListener("click", () => pullSyncData(els));
   }
 
   App.components.SyncModal = {
