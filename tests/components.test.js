@@ -96,6 +96,12 @@ describe("App.store — actualizaciones inmutables", () => {
     const emptyArr = store.saveCursoEditado("1", []);
     assert.equal(emptyArr.ok, false);
 
+    // No permite agregar bloques ni modificar día/inicio/fin de la comisión
+    const modifiedSchedule = store.saveCursoEditado("1", [
+      { dia: "Viernes", inicio: "14:00", fin: "16:00", aula: "999" }
+    ]);
+    assert.equal(modifiedSchedule.ok, false);
+
     const prevEditados = store.state.cursosEditados;
     const saved = store.saveCursoEditado("1", [
       { dia: "Lunes", inicio: "08:00", fin: "10:00", aula: "200" },
@@ -305,6 +311,7 @@ describe("EditCourseModal y UtnCalendar — aulas por día y sanitización XSS",
     sandbox.App.components.UtnCalendar.render();
     const calHtml = dom.elements["utn-cal-body"].innerHTML;
     assert.ok(calHtml.includes("Aula 200"));
+    assert.ok(calHtml.includes("Central (2° Piso)"));
     assert.ok(!calHtml.includes("<script>alert(1)</script>"));
     assert.ok(calHtml.includes("&lt;script&gt;alert(1)&lt;/script&gt;"));
     assert.equal(dom.elements["btn-edit-courses"].disabled, false);
@@ -343,7 +350,7 @@ describe("EditCourseModal y UtnCalendar — aulas por día y sanitización XSS",
     sandbox.App.store.selectComisionMateria("1", "1K1-A");
     sandbox.App.store.saveCursoEditado("1", [
       { dia: "Lunes", inicio: "08:00", fin: "10:00", aula: "200" },
-      { dia: "Martes", inicio: "10:00", fin: "12:00", aula: "300" }
+      { dia: "Martes", inicio: "10:00", fin: "12:00", aula: "610" }
     ]);
 
     sandbox.App.components.EditCourseModal.bindEvents();
@@ -352,8 +359,17 @@ describe("EditCourseModal y UtnCalendar — aulas por día y sanitización XSS",
     assert.equal(sandbox.App.components.EditCourseModal.isOpen(), true);
     const listHtml = dom.elements["edit-course-list"].innerHTML;
     assert.ok(listHtml.includes('value="200"'));
-    assert.ok(listHtml.includes('value="300"'));
+    assert.ok(listHtml.includes('value="610"'));
+    assert.ok(listHtml.includes("Edif. Central (2° Piso)"));
+    assert.ok(listHtml.includes("Edif. Soro (PB)"));
     assert.ok(listHtml.includes("Editado"));
+    assert.ok(listHtml.includes("Lunes"));
+    assert.ok(listHtml.includes("08:00"));
+    assert.ok(listHtml.includes("10:00"));
+    assert.ok(!listHtml.includes("<select"), "No debe renderizar selector editable de día");
+    assert.ok(!listHtml.includes('type="time"'), "No debe renderizar inputs editables de inicio/fin");
+    assert.ok(!listHtml.includes("Agregar bloque"), "No debe permitir agregar bloques");
+    assert.ok(!listHtml.includes("remove-block"), "No debe permitir eliminar bloques");
 
     dom.elements["btn-save-edit-course"].dispatch("click");
     assert.equal(sandbox.App.components.EditCourseModal.isOpen(), false);

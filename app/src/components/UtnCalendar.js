@@ -139,7 +139,7 @@
   }
 
   function renderClassCard(b, minMin, totalRangeMin) {
-    const { formatShortTime, formatAulaLabel } = App.schedule;
+    const { formatShortTime, formatAulaLabel, resolveEdificioByAula } = App.schedule;
     const topPct = ((b.startMin - minMin) / totalRangeMin) * 100;
     const heightPct = Math.max(7.5, ((b.endMin - b.startMin) / totalRangeMin) * 100);
     const timeLabel = `${formatShortTime(b.inicio)} — ${formatShortTime(b.fin)}hs`;
@@ -163,10 +163,13 @@
       .join(" ");
 
     const aulaLabel = !b.isPreview && b.aula ? formatAulaLabel(b.aula) : "";
+    const edificioInfo = !b.isPreview && b.aula && resolveEdificioByAula ? resolveEdificioByAula(b.aula) : null;
     const safeNombre = escapeHtml(b.materiaNombre);
     const safeComision = escapeHtml(b.comision);
     const safePeriodo = escapeHtml(b.periodo);
     const safeAula = escapeHtml(aulaLabel);
+    const safeEdificioCard = edificioInfo ? escapeHtml(edificioInfo.cardLabel) : "";
+    const safeEdificioFull = edificioInfo ? escapeHtml(edificioInfo.fullLabel) : "";
 
     const tooltipText = b.isPreview
       ? b.conflict
@@ -176,12 +179,17 @@
               : "otra materia plantada en otro día"
           )} — Clic para plantar igual ${safeNombre} (${safeComision} - ${safePeriodo})`
         : `Clic para plantar ${safeNombre} en comisión ${safeComision} (${safePeriodo}: ${timeLabel})`
-      : `Inscripto: ${safeNombre} (${safeComision} - ${safePeriodo})${safeAula ? ` • ${safeAula}` : ""}. Clic para ver opciones o cambiar.`;
+      : `Inscripto: ${safeNombre} (${safeComision} - ${safePeriodo})${safeAula ? ` • ${safeAula}` : ""}${
+          safeEdificioFull ? ` (${safeEdificioFull})` : ""
+        }. Clic para ver opciones o cambiar.`;
 
     const statusHtml = b.isPreview
       ? `<div class="utn-card-status">${b.conflict ? "(Ocupado / Choque)" : "(Plantar aquí)"}</div>`
       : aulaLabel
-      ? `<div class="utn-card-aula" title="${safeAula}">${safeAula}</div>`
+      ? `<div class="utn-card-aula-group">
+           <div class="utn-card-aula" title="${safeAula}${safeEdificioFull ? ` — ${safeEdificioFull}` : ""}">${safeAula}</div>
+           ${safeEdificioCard ? `<div class="utn-card-edificio" title="${safeEdificioFull}">${safeEdificioCard}</div>` : ""}
+         </div>`
       : `<div class="utn-card-status">(Inscripto)</div>`;
 
     const topRowHtml = b.isPreview
@@ -191,7 +199,7 @@
            <button type="button"
                    class="utn-card-edit-btn"
                    data-edit-materia="${escapeHtml(b.materiaId)}"
-                   title="Editar curso y aulas"
+                   title="Editar aulas"
                    aria-label="Editar ${safeNombre}">✎</button>
          </div>`;
 

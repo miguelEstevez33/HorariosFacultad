@@ -28,6 +28,145 @@
     return AULA_PREFIX_RE.test(trimmed) ? trimmed : `Aula ${trimmed}`;
   }
 
+  function resolveEdificioByAula(aula) {
+    const raw = String(aula || "").trim();
+    if (!raw) return null;
+
+    const cleaned = raw.replace(/^aula\s+/i, "").trim();
+    if (!cleaned) return null;
+
+    if (/^(magna|auditorio|multiespacio)\b/i.test(cleaned)) {
+      return {
+        edificioNum: "1",
+        edificio: "Central",
+        piso: null,
+        shortLabel: "Edif. Central",
+        cardLabel: "Edif. Central",
+        fullLabel: "Edificio Central"
+      };
+    }
+
+    const letterMatch = cleaned.match(/^A([0-9])(?:[a-z])?(?:\s|$)/i);
+    if (letterMatch) {
+      const digit = Number(letterMatch[1]);
+      if (digit === 0) {
+        return {
+          edificioNum: "1",
+          edificio: "Central",
+          piso: "PB",
+          shortLabel: "Edif. Central (PB)",
+          cardLabel: "Edif. Central (PB)",
+          fullLabel: "Edificio Central (PB)"
+        };
+      }
+      return {
+        edificioNum: "1 / 6",
+        edificio: "Central / Maders",
+        piso: "PB",
+        shortLabel: "Edif. Central (PB) / Edif. Maders",
+        cardLabel: "Edif. Central / Maders",
+        fullLabel: "Edificio Central (PB) o Edificio Maders"
+      };
+    }
+
+    const numMatch = cleaned.match(/^(\d{1,3})(?:[a-z])?(?:\s|$)/i);
+    if (!numMatch) return null;
+
+    const num = parseInt(numMatch[1], 10);
+    if (num >= 0 && num <= 20) {
+      return {
+        edificioNum: "1",
+        edificio: "Central",
+        piso: "PB",
+        shortLabel: "Edif. Central (PB)",
+        cardLabel: "Edif. Central (PB)",
+        fullLabel: "Edificio Central (PB)"
+      };
+    }
+    if (num >= 200 && num <= 299) {
+      return {
+        edificioNum: "1",
+        edificio: "Central",
+        piso: "2° Piso",
+        shortLabel: "Edif. Central (2° Piso)",
+        cardLabel: "Edif. Central (2° Piso)",
+        fullLabel: "Edificio Central (2° Piso)"
+      };
+    }
+    if (num >= 400 && num <= 499) {
+      return {
+        edificioNum: "4",
+        edificio: "Inchaurrondo",
+        piso: null,
+        shortLabel: "Edif. Inchaurrondo",
+        cardLabel: "Edif. Inchaurrondo",
+        fullLabel: "Edificio Inchaurrondo"
+      };
+    }
+    if (num >= 500 && num <= 599) {
+      return {
+        edificioNum: "5",
+        edificio: "Gallardo",
+        piso: null,
+        shortLabel: "Edif. Gallardo",
+        cardLabel: "Edif. Gallardo",
+        fullLabel: "Edificio Gallardo (Biblioteca)"
+      };
+    }
+    if (num >= 600 && num <= 699) {
+      return {
+        edificioNum: "2",
+        edificio: "Soro",
+        piso: "PB",
+        shortLabel: "Edif. Soro (PB)",
+        cardLabel: "Edif. Soro (PB)",
+        fullLabel: "Edificio Soro (PB)"
+      };
+    }
+    if (num >= 700 && num <= 799) {
+      return {
+        edificioNum: "2",
+        edificio: "Soro",
+        piso: "1° Piso",
+        shortLabel: "Edif. Soro (1° Piso)",
+        cardLabel: "Edif. Soro (1° Piso)",
+        fullLabel: "Edificio Soro (1° Piso)"
+      };
+    }
+    if (num >= 800 && num <= 899) {
+      return {
+        edificioNum: "2",
+        edificio: "Soro",
+        piso: "2° Piso",
+        shortLabel: "Edif. Soro (2° Piso)",
+        cardLabel: "Edif. Soro (2° Piso)",
+        fullLabel: "Edificio Soro (2° Piso)"
+      };
+    }
+    if (num >= 900 && num <= 950) {
+      return {
+        edificioNum: "3",
+        edificio: "Possetto",
+        piso: null,
+        shortLabel: "Edif. Possetto",
+        cardLabel: "Edif. Possetto",
+        fullLabel: "Edificio Possetto"
+      };
+    }
+    if (num === 999) {
+      return {
+        edificioNum: "Virtual",
+        edificio: "Virtual",
+        piso: null,
+        shortLabel: "Virtual",
+        cardLabel: "Virtual",
+        fullLabel: "Modalidad Virtual"
+      };
+    }
+
+    return null;
+  }
+
   function sortBloquesBySchedule(bloques) {
     if (!Array.isArray(bloques)) return [];
     return bloques
@@ -349,6 +488,7 @@
     timeToMinutes,
     isValidTimeString,
     formatAulaLabel,
+    resolveEdificioByAula,
     sortBloquesBySchedule,
     cleanMateriaName,
     isIsiComision,

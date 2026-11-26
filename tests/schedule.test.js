@@ -167,6 +167,27 @@ describe("App.schedule — utilidades de horarios", () => {
     assert.equal(S.formatAulaLabel("   "), "");
   });
 
+  it("resuelve el edificio y piso según la distribución de aulas UTN FRC", () => {
+    const S = setupScheduleEnv();
+    assert.equal(S.resolveEdificioByAula("005").shortLabel, "Edif. Central (PB)");
+    assert.equal(S.resolveEdificioByAula("020").shortLabel, "Edif. Central (PB)");
+    assert.equal(S.resolveEdificioByAula("A0").shortLabel, "Edif. Central (PB)");
+    assert.equal(S.resolveEdificioByAula("A3").shortLabel, "Edif. Central (PB) / Edif. Maders");
+    assert.equal(S.resolveEdificioByAula("Aula 205B").shortLabel, "Edif. Central (2° Piso)");
+    assert.equal(S.resolveEdificioByAula("412").shortLabel, "Edif. Inchaurrondo");
+    assert.equal(S.resolveEdificioByAula("505").shortLabel, "Edif. Gallardo");
+    assert.equal(S.resolveEdificioByAula("610").shortLabel, "Edif. Soro (PB)");
+    assert.equal(S.resolveEdificioByAula("715").shortLabel, "Edif. Soro (1° Piso)");
+    assert.equal(S.resolveEdificioByAula("804").shortLabel, "Edif. Soro (2° Piso)");
+    assert.equal(S.resolveEdificioByAula("920").shortLabel, "Edif. Possetto");
+    assert.equal(S.resolveEdificioByAula("999").shortLabel, "Virtual");
+    assert.equal(S.resolveEdificioByAula("Aula Magna").shortLabel, "Edif. Central");
+    assert.equal(S.resolveEdificioByAula("Lab 1"), null);
+    assert.equal(S.resolveEdificioByAula("Virtual"), null);
+    assert.equal(S.resolveEdificioByAula("300"), null);
+    assert.equal(S.resolveEdificioByAula("960"), null);
+  });
+
   it("preserva aulas al fusionar bloques con igual aula y separa bloques contiguos con aula distinta", () => {
     const S = setupScheduleEnv();
     const mergedSameAula = S.getMergedBloques([

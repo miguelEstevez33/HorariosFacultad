@@ -386,6 +386,15 @@
   flex-shrink: 0;
 }
 
+.utn-card-aula-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+
 .utn-card-aula {
   font-size: 11px;
   font-weight: 700;
@@ -399,6 +408,21 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+.utn-card-edificio {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  line-height: 1.1;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.utn-class-card.is-compact-lane .utn-card-edificio {
+  display: none;
 }
 
 .utn-class-card.has-conflict .utn-card-aula {

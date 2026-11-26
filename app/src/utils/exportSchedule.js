@@ -230,7 +230,16 @@
     ctx.textBaseline = "top";
     ctx.fillText(timeLabel, cardX + padCardX, cardY + 7, innerW);
 
-    const aulaLabel = block.aula ? formatAulaLabel(block.aula) : "";
+    const aulaBase = block.aula ? formatAulaLabel(block.aula) : "";
+    const edificioInfo =
+      block.aula && App.schedule && typeof App.schedule.resolveEdificioByAula === "function"
+        ? App.schedule.resolveEdificioByAula(block.aula)
+        : null;
+    const aulaLabel = aulaBase
+      ? edificioInfo
+        ? `${aulaBase} · ${edificioInfo.cardLabel}`
+        : aulaBase
+      : "";
     const showSeparateAulaRow = Boolean(aulaLabel) && totalLanes < 3 && cardH >= 64;
 
     // Código de comisión (y aula si aplica) abajo al centro

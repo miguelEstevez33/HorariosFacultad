@@ -138,7 +138,7 @@
               ${selectedObj ? `<span class="planted-badge">${escapeHtml(selectedObj.comision)}</span>` : ""}
               ${
                 selectedObj
-                  ? `<button type="button" class="btn-edit-picker" data-edit-course-id="${m.id}" title="Editar aulas y horarios de ${escapeHtml(m.nombre)}">Editar</button>`
+                  ? `<button type="button" class="btn-edit-picker" data-edit-course-id="${m.id}" title="Editar aulas de ${escapeHtml(m.nombre)}">Editar</button>`
                   : ""
               }
             </div>

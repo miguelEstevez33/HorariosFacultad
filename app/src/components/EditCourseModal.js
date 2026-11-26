@@ -1,4 +1,4 @@
-// Componente: Modal para editar cursos inscriptos (aulas por bloque y horarios)
+// Componente: Modal para editar aulas de los cursos inscriptos
 (function (global) {
   const App = (global.App = global.App || {});
   App.components = App.components || {};
@@ -53,30 +53,30 @@
     errorEl.style.display = "block";
   }
 
-  function cloneBloquesSorted(bloques) {
+  function blockKey(b) {
+    return `${b.dia}|${b.inicio}|${b.fin}`;
+  }
+
+  function cloneBaseBloquesWithAulas(baseBloques, effectiveBloques) {
     const { getMergedBloques, sortBloquesBySchedule } = App.schedule;
-    return sortBloquesBySchedule(getMergedBloques(bloques)).map(b => ({
+    const aulaByKey = new Map();
+    if (Array.isArray(effectiveBloques)) {
+      for (const b of sortBloquesBySchedule(getMergedBloques(effectiveBloques))) {
+        if (b.aula) {
+          aulaByKey.set(blockKey(b), String(b.aula));
+        }
+      }
+    }
+    return sortBloquesBySchedule(getMergedBloques(baseBloques)).map(b => ({
       dia: b.dia,
       inicio: b.inicio,
       fin: b.fin,
-      aula: b.aula ? String(b.aula) : ""
+      aula: aulaByKey.get(blockKey(b)) || ""
     }));
   }
 
-  function isDraftDifferentFromBase(draftBloques, baseOpt) {
-    const { getMergedBloques, sortBloquesBySchedule } = App.schedule;
-    const baseList = sortBloquesBySchedule(getMergedBloques(baseOpt.bloques));
-    const draftList = sortBloquesBySchedule(draftBloques);
-    if (draftList.length !== baseList.length) return true;
-    return draftList.some((b, idx) => {
-      const base = baseList[idx];
-      return (
-        String(b.aula || "").trim() !== "" ||
-        b.dia !== base.dia ||
-        b.inicio !== base.inicio ||
-        b.fin !== base.fin
-      );
-    });
+  function isDraftModified(draftBloques) {
+    return Array.isArray(draftBloques) && draftBloques.some(b => String(b.aula || "").trim() !== "");
   }
 
   function open(materiaId = null) {
@@ -87,7 +87,7 @@
     drafts = {};
     for (const { materia, optionId, baseOpt } of entries) {
       const effective = getEffectiveComision(materia.id, optionId) || baseOpt;
-      drafts[materia.id] = cloneBloquesSorted(effective.bloques);
+      drafts[materia.id] = cloneBaseBloquesWithAulas(baseOpt.bloques, effective.bloques);
     }
 
     filterMateriaId = materiaId && drafts[materiaId] ? materiaId : "all";
@@ -127,52 +127,39 @@
     filterEl.value = filterMateriaId;
   }
 
-  function renderBlockRow(materiaId, block, idx, totalBlocks) {
-    const { DAYS_ORDER } = App.schedule;
-    const dayOptions = DAYS_ORDER.map(
-      dia => `<option value="${dia}"${block.dia === dia ? " selected" : ""}>${dia}</option>`
-    ).join("");
+  function renderEdificioBadgeHtml(aula) {
+    const { resolveEdificioByAula } = App.schedule;
+    const info = resolveEdificioByAula ? resolveEdificioByAula(aula) : null;
+    if (!info) {
+      return `<span class="edit-block-edificio is-empty" title="Escribí un número de aula para ver el edificio">—</span>`;
+    }
+    return `<span class="edit-block-edificio is-detected" title="${escapeHtml(info.fullLabel)}">${escapeHtml(info.shortLabel)}</span>`;
+  }
 
+  function renderBlockRow(materiaId, block, idx) {
     return `
       <div class="edit-block-row" data-materia-id="${escapeHtml(materiaId)}" data-block-index="${idx}">
-        <select class="select-control select-sm edit-block-dia" data-field="dia" aria-label="Día del bloque ${idx + 1}">
-          ${dayOptions}
-        </select>
-        <input type="time"
-               class="edit-block-time"
-               data-field="inicio"
-               value="${escapeHtml(block.inicio)}"
-               aria-label="Hora de inicio del bloque ${idx + 1}" />
-        <input type="time"
-               class="edit-block-time"
-               data-field="fin"
-               value="${escapeHtml(block.fin)}"
-               aria-label="Hora de fin del bloque ${idx + 1}" />
+        <span class="edit-block-static edit-block-dia-text">${escapeHtml(block.dia)}</span>
+        <span class="edit-block-static edit-block-time-text">${escapeHtml(block.inicio)}</span>
+        <span class="edit-block-static edit-block-time-text edit-block-time-end">${escapeHtml(block.fin)}</span>
         <input type="text"
                class="edit-block-aula"
                data-field="aula"
                maxlength="40"
-               placeholder="Aula (ej: 200, Lab 1)"
+               placeholder="Aula (ej: 205, 610, A3)"
                value="${escapeHtml(block.aula || "")}"
-               aria-label="Aula del bloque ${idx + 1}" />
-        <button type="button"
-                class="btn-remove-block"
-                data-action="remove-block"
-                data-materia-id="${escapeHtml(materiaId)}"
-                data-block-index="${idx}"
-                ${totalBlocks <= 1 ? "disabled" : ""}
-                title="${totalBlocks <= 1 ? "El curso debe tener al menos un bloque" : "Eliminar bloque"}"
-                aria-label="Eliminar bloque ${idx + 1}">&times;</button>
+               aria-label="Aula del bloque ${escapeHtml(block.dia)} ${escapeHtml(block.inicio)} a ${escapeHtml(block.fin)}" />
+        ${renderEdificioBadgeHtml(block.aula)}
       </div>
     `;
   }
 
   function renderCourseCard({ materia, baseOpt }) {
     const bloques = drafts[materia.id] || [];
-    const isModified = isDraftDifferentFromBase(bloques, baseOpt);
+    const isModified = isDraftModified(bloques);
 
     const rowsHtml = bloques
-      .map((blk, idx) => renderBlockRow(materia.id, blk, idx, bloques.length))
+      .map((blk, idx) => renderBlockRow(materia.id, blk, idx))
       .join("");
 
     return `
@@ -190,7 +177,7 @@
                   data-action="reset-course"
                   data-materia-id="${escapeHtml(materia.id)}"
                   ${!isModified ? "disabled" : ""}
-                  title="Restaurar horarios originales de ${escapeHtml(baseOpt.comision)} y quitar aulas">
+                  title="Quitar aulas asignadas de ${escapeHtml(baseOpt.comision)}">
             Restaurar original
           </button>
         </div>
@@ -200,20 +187,11 @@
           <span>Inicio</span>
           <span>Fin</span>
           <span>Aula / Lugar</span>
-          <span></span>
+          <span>Edificio</span>
         </div>
 
         <div class="edit-blocks-list">
           ${rowsHtml}
-        </div>
-
-        <div class="edit-course-card-footer">
-          <button type="button"
-                  class="btn-toggle-extra-com"
-                  data-action="add-block"
-                  data-materia-id="${escapeHtml(materia.id)}">
-            + Agregar bloque
-          </button>
         </div>
       </div>
     `;
@@ -243,9 +221,28 @@
     listEl.innerHTML = visibleEntries.map(renderCourseCard).join("");
   }
 
+  function updateRowEdificioBadge(row, aulaValue) {
+    if (!row || typeof row.querySelector !== "function") return;
+    const badgeEl = row.querySelector(".edit-block-edificio");
+    if (!badgeEl) return;
+    const { resolveEdificioByAula } = App.schedule;
+    const info = resolveEdificioByAula ? resolveEdificioByAula(aulaValue) : null;
+    if (info) {
+      badgeEl.textContent = info.shortLabel;
+      badgeEl.title = info.fullLabel;
+      badgeEl.classList.remove("is-empty");
+      badgeEl.classList.add("is-detected");
+    } else {
+      badgeEl.textContent = "—";
+      badgeEl.title = "Escribí un número de aula para ver el edificio";
+      badgeEl.classList.remove("is-detected");
+      badgeEl.classList.add("is-empty");
+    }
+  }
+
   function handleBlockFieldChange(target) {
     const field = target.getAttribute("data-field");
-    if (!field) return;
+    if (field !== "aula") return;
     const row = target.closest(".edit-block-row");
     if (!row) return;
     const mId = row.getAttribute("data-materia-id");
@@ -254,39 +251,16 @@
 
     drafts[mId][idx] = {
       ...drafts[mId][idx],
-      [field]: target.value
+      aula: target.value
     };
+    updateRowEdificioBadge(row, target.value);
     clearError();
-  }
-
-  function addBlockToDraft(materiaId) {
-    const { DAYS_ORDER } = App.schedule;
-    const list = drafts[materiaId];
-    if (!list) return;
-
-    const usedDays = new Set(list.map(b => b.dia));
-    const nextDay = DAYS_ORDER.find(d => !usedDays.has(d)) || (list[list.length - 1] && list[list.length - 1].dia) || "Lunes";
-
-    drafts[materiaId] = [
-      ...list,
-      { dia: nextDay, inicio: "08:00", fin: "09:30", aula: "" }
-    ];
-    clearError();
-    render();
-  }
-
-  function removeBlockFromDraft(materiaId, blockIndex) {
-    const list = drafts[materiaId];
-    if (!list || list.length <= 1) return;
-    drafts[materiaId] = list.filter((_, i) => i !== blockIndex);
-    clearError();
-    render();
   }
 
   function resetDraftCourse(materiaId) {
     const entry = getOrderedEditableEntries().find(e => e.materia.id === materiaId);
     if (!entry) return;
-    drafts[materiaId] = cloneBloquesSorted(entry.baseOpt.bloques);
+    drafts[materiaId] = cloneBaseBloquesWithAulas(entry.baseOpt.bloques, null);
     clearError();
     render();
   }
@@ -329,11 +303,7 @@
         const action = actionEl.getAttribute("data-action");
         const mId = actionEl.getAttribute("data-materia-id");
 
-        if (action === "add-block") {
-          addBlockToDraft(mId);
-        } else if (action === "remove-block") {
-          removeBlockFromDraft(mId, Number(actionEl.getAttribute("data-block-index")));
-        } else if (action === "reset-course") {
+        if (action === "reset-course") {
           resetDraftCourse(mId);
         }
       });

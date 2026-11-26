@@ -88,28 +88,55 @@
     });
   }
 
-  function areBloquesEqualToBase(cleanBloques, baseOpt) {
-    if (!baseOpt || !Array.isArray(baseOpt.bloques)) return false;
-    const baseBloques =
+  function blockKey(b) {
+    return `${b.dia}|${b.inicio}|${b.fin}`;
+  }
+
+  function getCanonicalBaseBloques(baseOpt) {
+    if (!baseOpt || !Array.isArray(baseOpt.bloques)) return [];
+    const merged =
       App.schedule && typeof App.schedule.getMergedBloques === "function"
         ? App.schedule.getMergedBloques(baseOpt.bloques)
         : baseOpt.bloques;
+    return sortBloquesForCompare(merged).map(b => ({
+      dia: b.dia,
+      inicio: b.inicio,
+      fin: b.fin
+    }));
+  }
 
-    if (cleanBloques.length !== baseBloques.length) return false;
-    const sortedClean = sortBloquesForCompare(cleanBloques);
-    const sortedBase = sortBloquesForCompare(baseBloques);
+  function applyAulasToBaseBloques(cleanBloques, baseOpt, strict = true) {
+    const baseBloques = getCanonicalBaseBloques(baseOpt);
+    const validKeys = new Set(baseBloques.map(blockKey));
+    const aulaByKey = new Map();
 
-    return sortedClean.every((b, idx) => {
-      const base = sortedBase[idx];
-      const baseAula = String(base.aula || "").trim();
-      return (
-        !b.aula &&
-        !baseAula &&
-        b.dia === base.dia &&
-        b.inicio === base.inicio &&
-        b.fin === base.fin
-      );
+    for (const b of cleanBloques) {
+      const key = blockKey(b);
+      if (!validKeys.has(key)) {
+        if (strict) {
+          return {
+            ok: false,
+            error: "Solo se pueden editar las aulas de los bloques horarios de la comisión."
+          };
+        }
+        continue;
+      }
+      if (b.aula) {
+        aulaByKey.set(key, b.aula);
+      }
+    }
+
+    const merged = baseBloques.map(b => {
+      const aula = aulaByKey.get(blockKey(b));
+      return aula ? { ...b, aula } : { ...b };
     });
+
+    return { ok: true, bloques: merged };
+  }
+
+  function areBloquesEqualToBase(cleanBloques, baseOpt) {
+    if (!baseOpt || !Array.isArray(baseOpt.bloques)) return false;
+    return cleanBloques.every(b => !String(b.aula || "").trim());
   }
 
   function loadFromStorage(key, fallback) {
@@ -207,11 +234,14 @@
     if (!baseOpt) return null;
     const edit = state.cursosEditados[materiaId];
     if (edit && edit.optionId === baseOpt.id && Array.isArray(edit.bloques) && edit.bloques.length > 0) {
-      return {
-        ...baseOpt,
-        bloques: edit.bloques.map(b => ({ ...b })),
-        isEdited: true
-      };
+      const applied = applyAulasToBaseBloques(edit.bloques, baseOpt, false);
+      if (applied.ok && !areBloquesEqualToBase(applied.bloques, baseOpt)) {
+        return {
+          ...baseOpt,
+          bloques: applied.bloques,
+          isEdited: true
+        };
+      }
     }
     return baseOpt;
   }
@@ -282,14 +312,19 @@
       return sanitized;
     }
 
-    if (areBloquesEqualToBase(sanitized.bloques, baseOpt)) {
+    const applied = applyAulasToBaseBloques(sanitized.bloques, baseOpt, true);
+    if (!applied.ok) {
+      return applied;
+    }
+
+    if (areBloquesEqualToBase(applied.bloques, baseOpt)) {
       state.cursosEditados = omitKey(state.cursosEditados, materiaId);
     } else {
       state.cursosEditados = {
         ...state.cursosEditados,
         [materiaId]: {
           optionId,
-          bloques: sanitized.bloques,
+          bloques: applied.bloques,
           updatedAt: new Date().toISOString()
         }
       };
@@ -320,6 +355,10 @@
       const sanitized = sanitizeBloques(bloques);
       if (!sanitized.ok) {
         return { ok: false, materiaId: mId, error: sanitized.error };
+      }
+      const applied = applyAulasToBaseBloques(sanitized.bloques, baseOpt, true);
+      if (!applied.ok) {
+        return { ok: false, materiaId: mId, error: applied.error };
       }
     }
 
