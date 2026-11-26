@@ -25,19 +25,20 @@ Aplicación multiplataforma (**App de escritorio `.exe` con Electron**, **APK An
   - *Anual Completo*
   - *1° Cuatrimestre*
   - *2° Cuatrimestre*
+- **Edición de cursos y aulas por bloque:** permite editar los cursos inscriptos desde el botón **`Editar cursos`**, el selector izquierdo o el ícono `✎` en cada bloque de la grilla para asignar o actualizar el aula por día (ej. `Aula 200` el lunes y `Aula 300` el martes), ajustar horarios, agregar/quitar bloques y restaurar los horarios originales de la comisión cuando sea necesario.
 - **Detección de superposiciones horarias:** alerta automática cuando dos comisiones elegidas se superponen en el mismo día y horario (contemplando si pertenecen a cuatrimestres distintos).
-- **Exportar horario (`.png`):** genera y descarga una imagen PNG en alta resolución de la grilla semanal con un color distinto por materia y tabla de referencias.
+- **Exportar horario (`.png`):** genera y descarga una imagen PNG en alta resolución de la grilla semanal con un color distinto por materia, aulas asignadas y tabla de referencias.
 - **Modal "Matar Materia":** ordena las materias inscriptas de menor a mayor impacto según cuántas materias futuras traban directa o indirectamente si decidís dar de baja alguna.
 
 ### 4. Pestaña Correlativas (Previas y a Futuro)
 - Selector por **`N° - Materia`** (1° a 5° año y electivas) para consultar qué materias necesitás tener **Regulares** y **Aprobadas** para cursarla, qué materias destraba **a futuro** (directas y en cadena), y navegar haciendo clic sobre cualquier materia.
 
 ### 5. Persistencia local, App de Escritorio (`.exe`), APK Android y Sincronización PC ↔ Celular
-- Todos los estados y comisiones seleccionadas se guardan automáticamente mediante `localStorage`.
+- Todos los estados, comisiones seleccionadas y ediciones de cursos/aulas se guardan automáticamente mediante `localStorage`.
 - **App de escritorio Windows (`.exe` con Electron):** inicia automáticamente el servidor local de sincronización en segundo plano al abrir la ventana, sin necesidad de usar la terminal.
 - **App Android (`.apk` con Capacitor):** paquete nativo instalable en Android que comparte la misma base de código (`app/`).
 - **Sincronización bidireccional PC ↔ Celular (Wi-Fi local):** mediante el botón **`🔄 Sincronizar`** en el encabezado, podés:
-  - **PC → Celular:** enviar tus materias, estados, comisiones y los horarios actualizados (`schedules.js`) a la app del celular.
+  - **PC → Celular:** enviar tus materias, estados, comisiones, cursos editados/aulas y los horarios actualizados (`schedules.js`) a la app del celular.
   - **Celular → PC:** enviar los cambios que hiciste en el celular de vuelta a tu PC.
 
 ---
@@ -160,6 +161,7 @@ HorariosFacultad/
 │       │   ├── CursadoPicker.js  # Panel selector de materias y chips de comisiones
 │       │   ├── UtnCalendar.js    # Grilla horaria semanal estilo Autogestión UTN
 │       │   ├── CorrelativasTab.js# Pestaña Correlativas (previas y a futuro)
+│       │   ├── EditCourseModal.js# Modal para editar aulas y bloques de cursos inscriptos
 │       │   ├── KillMateriaModal.js# Modal "Matar Materia" (ranking de impacto)
 │       │   └── SyncModal.js      # Controlador UI del modal de sincronización PC ↔ Celular
 │       └── styles/               # Estilos CSS modulares y variables de los 6 temas
