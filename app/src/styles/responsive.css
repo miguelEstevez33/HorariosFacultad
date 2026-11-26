@@ -412,3 +412,45 @@ body {
     font-size: 12px;
   }
 }
+
+/* Adaptaciones específicas para iOS */
+.tab-label-ios {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .platform-ios .tab-label-full {
+    display: none;
+  }
+
+  .platform-ios .tab-label-ios {
+    display: inline;
+  }
+
+  .platform-ios .tab-btn {
+    min-height: 52px;
+    padding: 8px 3px;
+    gap: 4px;
+    font-size: 13px;
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: center;
+    align-content: center;
+    justify-items: center;
+  }
+
+  .platform-ios .tab-icon {
+    width: 18px;
+    height: 18px;
+    grid-column: 1 / -1;
+  }
+
+  .platform-ios .tab-btn:not(#tab-btn-cursado) .tab-label-ios {
+    grid-column: 1 / -1;
+  }
+
+  /* El body ya incorpora el safe-area-inset-bottom. */
+  .platform-ios .main-content {
+    padding-bottom: 32px;
+  }
+}
