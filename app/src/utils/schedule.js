@@ -4,6 +4,7 @@
 
   const DAYS_ORDER = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
   const CONFLICT_EDGE_TOLERANCE_MIN = 20;
+  const AULA_PREFIX_RE = /^(aula|lab|laboratorio|sum|sala|virtual|auditorio|taller|anfiteatro|zoom|meet|patio|edificio|box)\b/i;
 
   function formatShortTime(tStr) {
     // Convierte "14:00" -> "14" y "13:15" -> "13:15"
@@ -15,6 +16,36 @@
   function timeToMinutes(tStr) {
     const [hh, mm] = tStr.split(":").map(Number);
     return hh * 60 + mm;
+  }
+
+  function isValidTimeString(tStr) {
+    return typeof tStr === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(tStr);
+  }
+
+  function formatAulaLabel(aula) {
+    const trimmed = String(aula || "").trim();
+    if (!trimmed) return "";
+    return AULA_PREFIX_RE.test(trimmed) ? trimmed : `Aula ${trimmed}`;
+  }
+
+  function sortBloquesBySchedule(bloques) {
+    if (!Array.isArray(bloques)) return [];
+    return bloques
+      .map(b => ({ ...b }))
+      .sort((a, b) => {
+        const dayDiff = DAYS_ORDER.indexOf(a.dia) - DAYS_ORDER.indexOf(b.dia);
+        if (dayDiff !== 0) return dayDiff;
+        return timeToMinutes(a.inicio) - timeToMinutes(b.inicio);
+      });
+  }
+
+  function buildBlockObj(dia, inicio, fin, aula) {
+    const obj = { dia, inicio, fin };
+    const cleanAula = String(aula || "").trim();
+    if (cleanAula) {
+      obj.aula = cleanAula;
+    }
+    return obj;
   }
 
   function cleanMateriaName(nombre) {
@@ -47,13 +78,22 @@
     return a.startMin < b.endMin && b.startMin < a.endMin;
   }
 
-  // Une bloques de la misma comisión en el mismo día separados por un recreo corto (<= 30 min)
+  // Une bloques de la misma comisión en el mismo día separados por un recreo corto (<= 30 min) si comparten aula
   function getMergedBloques(bloques) {
-    if (!bloques || bloques.length <= 1) return bloques || [];
+    if (!bloques || bloques.length === 0) return [];
+    if (bloques.length === 1) {
+      const b = bloques[0];
+      return [buildBlockObj(b.dia, b.inicio, b.fin, b.aula)];
+    }
     const byDay = {};
     for (const b of bloques) {
       if (!byDay[b.dia]) byDay[b.dia] = [];
-      byDay[b.dia].push({ ...b, _s: timeToMinutes(b.inicio), _e: timeToMinutes(b.fin) });
+      byDay[b.dia].push({
+        ...b,
+        aula: String(b.aula || "").trim(),
+        _s: timeToMinutes(b.inicio),
+        _e: timeToMinutes(b.fin)
+      });
     }
     const result = [];
     for (const dia of Object.keys(byDay)) {
@@ -61,24 +101,27 @@
       let curr = list[0];
       for (let i = 1; i < list.length; i++) {
         const nxt = list[i];
-        if (nxt._s - curr._e <= 30) {
+        if (nxt._s - curr._e <= 30 && curr.aula === nxt.aula) {
           if (nxt._e > curr._e) {
             curr.fin = nxt.fin;
             curr._e = nxt._e;
           }
         } else {
-          result.push({ dia: curr.dia, inicio: curr.inicio, fin: curr.fin });
+          result.push(buildBlockObj(curr.dia, curr.inicio, curr.fin, curr.aula));
           curr = nxt;
         }
       }
-      result.push({ dia: curr.dia, inicio: curr.inicio, fin: curr.fin });
+      result.push(buildBlockObj(curr.dia, curr.inicio, curr.fin, curr.aula));
     }
     return result;
   }
 
   function formatBloquesResumen(bloques) {
     return getMergedBloques(bloques)
-      .map(b => `${b.dia.slice(0, 3)} ${formatShortTime(b.inicio)}-${formatShortTime(b.fin)}hs`)
+      .map(b => {
+        const base = `${b.dia.slice(0, 3)} ${formatShortTime(b.inicio)}-${formatShortTime(b.fin)}hs`;
+        return b.aula ? `${base} (${formatAulaLabel(b.aula)})` : base;
+      })
       .join(" • ");
   }
 
@@ -105,12 +148,16 @@
       const optId = state.cursosSeleccionados[mId];
       const materia = MATERIAS_MAP[mId];
       if (!materia) continue;
-      const opciones = getOpcionesComision(mId);
-      const opt = opciones.find(o => o.id === optId);
+      const opt =
+        typeof App.store.getEffectiveComision === "function"
+          ? App.store.getEffectiveComision(mId, optId)
+          : getOpcionesComision(mId).find(o => o.id === optId);
       if (!opt) continue;
       if (!matchesCuatFilter(opt.periodo, activeFilter)) continue;
 
       const nombre = cleanMateriaName(materia.nombre);
+      const mergedBloques = getMergedBloques(opt.bloques);
+      const isEdited = Boolean(opt.isEdited);
       totalHoras += materia.carga;
       subjects.push({
         id: mId,
@@ -118,10 +165,12 @@
         comision: opt.comision,
         optionId: opt.id,
         periodo: opt.periodo,
-        carga: materia.carga
+        carga: materia.carga,
+        isEdited,
+        bloques: mergedBloques
       });
 
-      for (const b of getMergedBloques(opt.bloques)) {
+      for (const b of mergedBloques) {
         blocks.push({
           materiaId: mId,
           materiaNombre: nombre,
@@ -131,6 +180,8 @@
           dia: b.dia,
           inicio: b.inicio,
           fin: b.fin,
+          aula: b.aula || "",
+          isEdited,
           startMin: timeToMinutes(b.inicio),
           endMin: timeToMinutes(b.fin),
           conflict: false,
@@ -296,6 +347,9 @@
     CONFLICT_EDGE_TOLERANCE_MIN,
     formatShortTime,
     timeToMinutes,
+    isValidTimeString,
+    formatAulaLabel,
+    sortBloquesBySchedule,
     cleanMateriaName,
     isIsiComision,
     matchesCuatFilter,

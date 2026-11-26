@@ -156,4 +156,97 @@ describe("App.schedule — utilidades de horarios", () => {
     assert.equal(result[2].laneIndex, 0);
     assert.equal(input[0].laneIndex, undefined);
   });
+
+  it("formatea etiquetas de aula sin duplicar prefijos descriptivos", () => {
+    const S = setupScheduleEnv();
+    assert.equal(S.formatAulaLabel("200"), "Aula 200");
+    assert.equal(S.formatAulaLabel("  305B  "), "Aula 305B");
+    assert.equal(S.formatAulaLabel("Aula 200"), "Aula 200");
+    assert.equal(S.formatAulaLabel("Lab 1"), "Lab 1");
+    assert.equal(S.formatAulaLabel("Virtual"), "Virtual");
+    assert.equal(S.formatAulaLabel("   "), "");
+  });
+
+  it("preserva aulas al fusionar bloques con igual aula y separa bloques contiguos con aula distinta", () => {
+    const S = setupScheduleEnv();
+    const mergedSameAula = S.getMergedBloques([
+      { dia: "Lunes", inicio: "08:00", fin: "09:30", aula: "200" },
+      { dia: "Lunes", inicio: "09:45", fin: "11:15", aula: " 200 " }
+    ]);
+    assert.deepEqual(JSON.parse(JSON.stringify(mergedSameAula)), [
+      { dia: "Lunes", inicio: "08:00", fin: "11:15", aula: "200" }
+    ]);
+
+    const mergedDiffAula = S.getMergedBloques([
+      { dia: "Lunes", inicio: "08:00", fin: "09:30", aula: "200" },
+      { dia: "Lunes", inicio: "09:45", fin: "11:15", aula: "Lab 1" },
+      { dia: "Martes", inicio: "14:00", fin: "16:00", aula: "300" }
+    ]);
+    assert.deepEqual(JSON.parse(JSON.stringify(mergedDiffAula)), [
+      { dia: "Lunes", inicio: "08:00", fin: "09:30", aula: "200" },
+      { dia: "Lunes", inicio: "09:45", fin: "11:15", aula: "Lab 1" },
+      { dia: "Martes", inicio: "14:00", fin: "16:00", aula: "300" }
+    ]);
+    assert.equal(
+      S.formatBloquesResumen(mergedDiffAula),
+      "Lun 8-9:30hs (Aula 200) • Lun 9:45-11:15hs (Lab 1) • Mar 14-16hs (Aula 300)"
+    );
+  });
+
+  it("recolecta aulas distintas por día y detecta conflictos usando getEffectiveComision", () => {
+    const { sandbox } = createBrowserSandbox();
+    sandbox.App = {
+      data: {
+        MATERIAS_MAP: {
+          "1": { id: "1", nombre: "Análisis Matemático I", carga: 5 },
+          "2": { id: "2", nombre: "Álgebra", carga: 5 }
+        }
+      },
+      store: {
+        state: {
+          cursosSeleccionados: { "1": "1K1-A", "2": "1K2-A" },
+          ordenCursosSeleccionados: ["1", "2"],
+          currentCuatFilter: "all"
+        },
+        getOpcionesComision: () => [],
+        getEffectiveComision: (mId, optId) => {
+          if (mId === "1" && optId === "1K1-A") {
+            return {
+              id: "1K1-A",
+              comision: "1K1",
+              periodo: "Anual",
+              isEdited: true,
+              bloques: [
+                { dia: "Lunes", inicio: "08:00", fin: "10:00", aula: "200" },
+                { dia: "Martes", inicio: "08:00", fin: "10:00", aula: "300" }
+              ]
+            };
+          }
+          if (mId === "2" && optId === "1K2-A") {
+            return {
+              id: "1K2-A",
+              comision: "1K2",
+              periodo: "Anual",
+              isEdited: false,
+              bloques: [{ dia: "Martes", inicio: "09:00", fin: "11:00" }]
+            };
+          }
+          return null;
+        }
+      }
+    };
+    loadAppScript(sandbox, "app/src/utils/schedule.js");
+    const S = sandbox.App.schedule;
+
+    const schedule = S.collectEnrolledSchedule();
+    assert.equal(schedule.blocks.length, 3);
+    assert.equal(schedule.blocks[0].aula, "200");
+    assert.equal(schedule.blocks[1].aula, "300");
+    assert.equal(schedule.blocks[1].isEdited, true);
+    assert.equal(schedule.blocks[2].aula, "");
+
+    const { conflicts } = S.detectEnrolledConflicts(schedule.blocks);
+    assert.equal(conflicts.length, 1);
+    assert.equal(conflicts[0].dia, "Martes");
+  });
 });

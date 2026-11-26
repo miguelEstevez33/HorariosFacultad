@@ -292,6 +292,9 @@
 :root[data-theme="alto-contraste"] .corr-dep-card,
 :root[data-theme="alto-contraste"] .kill-modal-dialog,
 :root[data-theme="alto-contraste"] .kill-item-card,
+:root[data-theme="alto-contraste"] .edit-course-card,
+:root[data-theme="alto-contraste"] .edit-block-time,
+:root[data-theme="alto-contraste"] .edit-block-aula,
 :root[data-theme="alto-contraste"] .select-control,
 :root[data-theme="alto-contraste"] .search-box input,
 :root[data-theme="alto-contraste"] .btn {

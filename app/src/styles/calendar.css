@@ -349,6 +349,34 @@
   color: var(--text) !important;
 }
 
+.utn-card-top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.utn-card-edit-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color var(--transition), color var(--transition), border-color var(--transition);
+}
+
+.utn-card-edit-btn:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-text);
+}
+
 .utn-card-time {
   align-self: flex-start;
   font-size: 11px;
@@ -356,6 +384,40 @@
   color: var(--text);
   line-height: 1.15;
   flex-shrink: 0;
+}
+
+.utn-card-aula {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary-text);
+  background: var(--surface);
+  border: 1px solid var(--block-enrolled-border);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.utn-class-card.has-conflict .utn-card-aula {
+  color: var(--danger) !important;
+  border-color: var(--block-conflict-border);
+}
+
+.utn-class-card.is-two-lanes .utn-card-aula {
+  font-size: 10px;
+  padding: 0 4px;
+}
+
+.utn-class-card.is-compact-lane .utn-card-aula {
+  font-size: 9px;
+  padding: 0 3px;
+}
+
+.utn-class-card.is-compact-lane .utn-card-edit-btn {
+  display: none;
 }
 
 .utn-card-subject {

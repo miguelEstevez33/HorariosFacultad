@@ -91,6 +91,15 @@ describe("server/sync-server.js — seguridad de rutas y API HTTP", () => {
     const postRes = await invokeServer(server, "POST", "/api/sync", {
       estadosAlumno: { "1": "aprobado" },
       cursosSeleccionados: { "2": "1K2-A" },
+      cursosEditados: {
+        "2": {
+          optionId: "1K2-A",
+          bloques: [
+            { dia: "Lunes", inicio: "08:00", fin: "10:00", aula: "200" },
+            { dia: "Martes", inicio: "08:00", fin: "10:00", aula: "300" }
+          ]
+        }
+      },
       ordenCursosSeleccionados: ["2"],
       source: "pc"
     });
@@ -103,6 +112,8 @@ describe("server/sync-server.js — seguridad de rutas y API HTTP", () => {
     assert.equal(syncJson.ok, true);
     assert.deepEqual(syncJson.estadosAlumno, { "1": "aprobado" });
     assert.deepEqual(syncJson.cursosSeleccionados, { "2": "1K2-A" });
+    assert.equal(syncJson.cursosEditados["2"].bloques[0].aula, "200");
+    assert.equal(syncJson.cursosEditados["2"].bloques[1].aula, "300");
     assert.ok(syncJson.horariosMaterias && typeof syncJson.horariosMaterias === "object");
 
     const optRes = await invokeServer(server, "OPTIONS", "/api/sync");

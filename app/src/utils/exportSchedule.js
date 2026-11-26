@@ -202,7 +202,7 @@
   }
 
   function drawSingleCard(ctx, block, pal, cardX, cardY, cardW, cardH, totalLanes) {
-    const { formatShortTime } = App.schedule;
+    const { formatShortTime, formatAulaLabel } = App.schedule;
 
     // Fondo + borde
     drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 4);
@@ -230,17 +230,44 @@
     ctx.textBaseline = "top";
     ctx.fillText(timeLabel, cardX + padCardX, cardY + 7, innerW);
 
-    // Código de comisión abajo al centro
+    const aulaLabel = block.aula ? formatAulaLabel(block.aula) : "";
+    const showSeparateAulaRow = Boolean(aulaLabel) && totalLanes < 3 && cardH >= 64;
+
+    // Código de comisión (y aula si aplica) abajo al centro
     const comFontSize = totalLanes >= 3 ? 13 : totalLanes === 2 ? 15 : 17;
     ctx.fillStyle = pal.text;
     ctx.font = `700 ${comFontSize}px ${FONT_STACK}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
-    ctx.fillText(block.comision, cardX + cardW / 2, cardY + cardH - 5, innerW);
+    const bottomText =
+      aulaLabel && !showSeparateAulaRow ? `${block.comision} • ${aulaLabel}` : block.comision;
+    ctx.fillText(bottomText, cardX + cardW / 2, cardY + cardH - 5, innerW);
+
+    let bottomArea = cardY + cardH - (comFontSize + 10);
+    if (showSeparateAulaRow) {
+      const aulaFontSize = totalLanes === 2 ? 10 : 11;
+      const aulaPillH = 16;
+      const aulaY = cardY + cardH - comFontSize - 7 - aulaPillH;
+      ctx.font = `700 ${aulaFontSize}px ${FONT_STACK}`;
+      const measuredW = Math.min(innerW, Math.ceil(ctx.measureText(aulaLabel).width) + 12);
+      const pillX = cardX + (cardW - measuredW) / 2;
+
+      drawRoundedRect(ctx, pillX, aulaY, measuredW, aulaPillH, 3);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = pal.border;
+      ctx.stroke();
+
+      ctx.fillStyle = pal.text;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(aulaLabel, cardX + cardW / 2, aulaY + aulaPillH / 2 + 0.5, measuredW - 6);
+      bottomArea = aulaY - 4;
+    }
 
     // Nombre de la materia en el centro
     const topArea = cardY + 22;
-    const bottomArea = cardY + cardH - (comFontSize + 10);
     const availH = bottomArea - topArea;
 
     if (availH >= 12) {

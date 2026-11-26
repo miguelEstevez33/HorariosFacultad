@@ -21,7 +21,8 @@
       CursadoPicker,
       UtnCalendar,
       CorrelativasTab,
-      KillMateriaModal
+      KillMateriaModal,
+      EditCourseModal
     } = App.components;
 
     HeaderStats.render();
@@ -31,6 +32,13 @@
     CorrelativasTab.render();
     if (KillMateriaModal.isOpen()) {
       KillMateriaModal.render();
+    }
+    if (EditCourseModal && EditCourseModal.isOpen()) {
+      if (Object.keys(App.store.state.cursosSeleccionados).length === 0) {
+        EditCourseModal.close();
+      } else {
+        EditCourseModal.render();
+      }
     }
   }
 
@@ -71,6 +79,7 @@
       UtnCalendar,
       CorrelativasTab,
       KillMateriaModal,
+      EditCourseModal,
       SyncModal
     } = App.components;
 
@@ -81,6 +90,7 @@
     UtnCalendar.bindEvents();
     CorrelativasTab.bindEvents();
     KillMateriaModal.bindEvents();
+    if (EditCourseModal) EditCourseModal.bindEvents();
     SyncModal.bindEvents();
 
     renderAll();

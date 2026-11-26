@@ -27,6 +27,7 @@ const MIME_TYPES = {
 const EMPTY_SYNC_DATA = {
   estadosAlumno: {},
   cursosSeleccionados: {},
+  cursosEditados: {},
   ordenCursosSeleccionados: [],
   updatedAt: null,
   source: null
@@ -155,6 +156,7 @@ function createSyncServer(options = {}) {
       ok: true,
       estadosAlumno: current.estadosAlumno || {},
       cursosSeleccionados: current.cursosSeleccionados || {},
+      cursosEditados: current.cursosEditados || {},
       ordenCursosSeleccionados: current.ordenCursosSeleccionados || [],
       horariosMaterias,
       updatedAt: current.updatedAt || null,
@@ -176,9 +178,16 @@ function createSyncServer(options = {}) {
         !Array.isArray(parsed.cursosSeleccionados)
           ? parsed.cursosSeleccionados
           : {};
+      const cursosEditados =
+        parsed.cursosEditados &&
+        typeof parsed.cursosEditados === "object" &&
+        !Array.isArray(parsed.cursosEditados)
+          ? parsed.cursosEditados
+          : {};
       const payload = {
         estadosAlumno,
         cursosSeleccionados,
+        cursosEditados,
         ordenCursosSeleccionados: Array.isArray(parsed.ordenCursosSeleccionados)
           ? parsed.ordenCursosSeleccionados
           : Object.keys(cursosSeleccionados),

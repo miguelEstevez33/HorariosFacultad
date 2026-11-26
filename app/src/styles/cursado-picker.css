@@ -248,6 +248,30 @@
   color: var(--text);
 }
 
+.picker-preview-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-edit-picker {
+  background: transparent;
+  border: 1px solid var(--primary);
+  color: var(--primary-text);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color var(--transition);
+}
+
+.btn-edit-picker:hover {
+  background: var(--primary-soft);
+}
+
 .btn-unplant-inline {
   background: transparent;
   border: 1px solid var(--danger);

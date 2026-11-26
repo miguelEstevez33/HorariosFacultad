@@ -5,6 +5,15 @@
 
   let lastHoveredOptionId = null;
 
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   function highlightHoveredOption(optionId) {
     const allCards = document.querySelectorAll(".utn-class-card");
     allCards.forEach(card => {
@@ -130,7 +139,7 @@
   }
 
   function renderClassCard(b, minMin, totalRangeMin) {
-    const { formatShortTime } = App.schedule;
+    const { formatShortTime, formatAulaLabel } = App.schedule;
     const topPct = ((b.startMin - minMin) / totalRangeMin) * 100;
     const heightPct = Math.max(7.5, ((b.endMin - b.startMin) / totalRangeMin) * 100);
     const timeLabel = `${formatShortTime(b.inicio)} — ${formatShortTime(b.fin)}hs`;
@@ -153,29 +162,50 @@
       .filter(Boolean)
       .join(" ");
 
+    const aulaLabel = !b.isPreview && b.aula ? formatAulaLabel(b.aula) : "";
+    const safeNombre = escapeHtml(b.materiaNombre);
+    const safeComision = escapeHtml(b.comision);
+    const safePeriodo = escapeHtml(b.periodo);
+    const safeAula = escapeHtml(aulaLabel);
+
     const tooltipText = b.isPreview
       ? b.conflict
-        ? `⚠️ Choca con ${b.conflictingNames && b.conflictingNames.length ? b.conflictingNames.join(", ") : "otra materia plantada en otro día"} — Clic para plantar igual ${b.materiaNombre} (${b.comision} - ${b.periodo})`
-        : `Clic para plantar ${b.materiaNombre} en comisión ${b.comision} (${b.periodo}: ${timeLabel})`
-      : `Inscripto: ${b.materiaNombre} (${b.comision} - ${b.periodo}). Clic para ver opciones o cambiar.`;
+        ? `⚠️ Choca con ${escapeHtml(
+            b.conflictingNames && b.conflictingNames.length
+              ? b.conflictingNames.join(", ")
+              : "otra materia plantada en otro día"
+          )} — Clic para plantar igual ${safeNombre} (${safeComision} - ${safePeriodo})`
+        : `Clic para plantar ${safeNombre} en comisión ${safeComision} (${safePeriodo}: ${timeLabel})`
+      : `Inscripto: ${safeNombre} (${safeComision} - ${safePeriodo})${safeAula ? ` • ${safeAula}` : ""}. Clic para ver opciones o cambiar.`;
 
-    const statusText = b.isPreview
-      ? b.conflict
-        ? "(Ocupado / Choque)"
-        : "(Plantar aquí)"
-      : "(Inscripto)";
+    const statusHtml = b.isPreview
+      ? `<div class="utn-card-status">${b.conflict ? "(Ocupado / Choque)" : "(Plantar aquí)"}</div>`
+      : aulaLabel
+      ? `<div class="utn-card-aula" title="${safeAula}">${safeAula}</div>`
+      : `<div class="utn-card-status">(Inscripto)</div>`;
+
+    const topRowHtml = b.isPreview
+      ? `<div class="utn-card-time">${timeLabel}</div>`
+      : `<div class="utn-card-top">
+           <div class="utn-card-time">${timeLabel}</div>
+           <button type="button"
+                   class="utn-card-edit-btn"
+                   data-edit-materia="${escapeHtml(b.materiaId)}"
+                   title="Editar curso y aulas"
+                   aria-label="Editar ${safeNombre}">✎</button>
+         </div>`;
 
     return `
       <div class="${cardClasses}"
            style="top: ${topPct.toFixed(2)}%; height: ${heightPct.toFixed(2)}%; left: calc(${leftPct.toFixed(2)}% + 2px); width: calc(${widthPct.toFixed(2)}% - 4px);"
-           data-materia-id="${b.materiaId}"
-           data-option-id="${b.optionId}"
+           data-materia-id="${escapeHtml(b.materiaId)}"
+           data-option-id="${escapeHtml(b.optionId)}"
            data-is-preview="${b.isPreview ? "1" : "0"}"
            title="${tooltipText}">
-        <div class="utn-card-time">${timeLabel}</div>
-        <div class="utn-card-subject">${b.materiaNombre}</div>
-        <div class="utn-card-status">${statusText}</div>
-        <div class="utn-card-comision">${b.comision}</div>
+        ${topRowHtml}
+        <div class="utn-card-subject">${safeNombre}</div>
+        ${statusHtml}
+        <div class="utn-card-comision">${safeComision}</div>
       </div>
     `;
   }
@@ -210,14 +240,19 @@
     const calBody = document.getElementById("utn-cal-body");
     const summaryPill = document.getElementById("enrolled-summary-pill");
     const btnClear = document.getElementById("btn-clear-plan");
+    const btnEditCourses = document.getElementById("btn-edit-courses");
     const btnExport = document.getElementById("btn-export-schedule");
     const conflictBanner = document.getElementById("conflict-alert-banner");
 
     const { blocks: rawEnrolledBlocks, totalMaterias, totalHoras } = collectEnrolledSchedule();
     const { blocks: enrolledBlocks, conflicts } = detectEnrolledConflicts(rawEnrolledBlocks);
 
+    const hasAnySelected = Object.keys(state.cursosSeleccionados).length > 0;
     summaryPill.textContent = `${totalMaterias} ${totalMaterias === 1 ? "materia inscripta" : "materias inscriptas"} (${totalHoras} hs/sem)`;
-    btnClear.disabled = Object.keys(state.cursosSeleccionados).length === 0;
+    btnClear.disabled = !hasAnySelected;
+    if (btnEditCourses) {
+      btnEditCourses.disabled = !hasAnySelected;
+    }
     if (btnExport) {
       btnExport.disabled = totalMaterias === 0;
     }
@@ -250,6 +285,15 @@
     if (!calBody) return;
 
     calBody.addEventListener("click", e => {
+      const editBtn = e.target.closest("[data-edit-materia]");
+      if (editBtn) {
+        e.stopPropagation();
+        if (App.components.EditCourseModal) {
+          App.components.EditCourseModal.open(editBtn.getAttribute("data-edit-materia"));
+        }
+        return;
+      }
+
       const card = e.target.closest(".utn-class-card");
       if (!card) return;
       const mId = card.getAttribute("data-materia-id");
@@ -297,6 +341,15 @@
     document.getElementById("btn-clear-plan").addEventListener("click", () => {
       App.store.clearPlan();
     });
+
+    const btnEditCourses = document.getElementById("btn-edit-courses");
+    if (btnEditCourses) {
+      btnEditCourses.addEventListener("click", () => {
+        if (App.components.EditCourseModal) {
+          App.components.EditCourseModal.open();
+        }
+      });
+    }
 
     const btnExport = document.getElementById("btn-export-schedule");
     if (btnExport) {

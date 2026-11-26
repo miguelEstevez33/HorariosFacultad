@@ -56,6 +56,82 @@ describe("App.store — actualizaciones inmutables", () => {
     assert.notEqual(store.state.cursosSeleccionados, cursosBeforeKill);
     assert.equal(store.state.cursosSeleccionados["1"], undefined);
   });
+
+  it("gestiona cursosEditados de forma inmutable, valida bloques, persiste y limpia al resetear", () => {
+    const { sandbox, storage } = createBrowserSandbox();
+    sandbox.HORARIOS_MATERIAS = {
+      "1": [
+        {
+          id: "1K1-A",
+          comision: "1K1",
+          periodo: "Anual",
+          bloques: [
+            { dia: "Lunes", inicio: "08:00", fin: "10:00" },
+            { dia: "Martes", inicio: "10:00", fin: "12:00" }
+          ]
+        },
+        {
+          id: "1K2-A",
+          comision: "1K2",
+          periodo: "Anual",
+          bloques: [{ dia: "Miércoles", inicio: "08:00", fin: "10:00" }]
+        }
+      ]
+    };
+    sandbox.App = { renderAll: () => {} };
+    loadAppScript(sandbox, "app/src/data/materias.js");
+    loadAppScript(sandbox, "app/src/state/store.js");
+    loadAppScript(sandbox, "app/src/utils/correlativas.js");
+    loadAppScript(sandbox, "app/src/utils/schedule.js");
+
+    const { store } = sandbox.App;
+    store.selectComisionMateria("1", "1K1-A");
+
+    const badTime = store.saveCursoEditado("1", [{ dia: "Lunes", inicio: "10:00", fin: "08:00", aula: "200" }]);
+    assert.equal(badTime.ok, false);
+
+    const badDay = store.saveCursoEditado("1", [{ dia: "Domingo", inicio: "08:00", fin: "10:00" }]);
+    assert.equal(badDay.ok, false);
+
+    const emptyArr = store.saveCursoEditado("1", []);
+    assert.equal(emptyArr.ok, false);
+
+    const prevEditados = store.state.cursosEditados;
+    const saved = store.saveCursoEditado("1", [
+      { dia: "Lunes", inicio: "08:00", fin: "10:00", aula: "200" },
+      { dia: "Martes", inicio: "10:00", fin: "12:00", aula: "300" }
+    ]);
+    assert.equal(saved.ok, true);
+    assert.notEqual(store.state.cursosEditados, prevEditados);
+    assert.equal(store.getEffectiveComision("1").bloques[0].aula, "200");
+    assert.equal(store.getEffectiveComision("1").bloques[1].aula, "300");
+
+    const persisted = JSON.parse(storage[store.STORAGE_KEYS.CURSOS_EDITADOS]);
+    assert.equal(persisted["1"].bloques[0].aula, "200");
+
+    // Volver al horario base sin aulas elimina el override redundante
+    store.saveCursoEditado("1", [
+      { dia: "Lunes", inicio: "08:00", fin: "10:00", aula: "" },
+      { dia: "Martes", inicio: "10:00", fin: "12:00", aula: "" }
+    ]);
+    assert.equal(store.state.cursosEditados["1"], undefined);
+
+    // Guardar de nuevo y verificar limpieza al cambiar de comisión y al vaciar plan
+    store.saveCursosEditadosBatch({
+      "1": [
+        { dia: "Lunes", inicio: "08:00", fin: "10:00", aula: "405" }
+      ]
+    });
+    assert.equal(store.state.cursosEditados["1"].bloques[0].aula, "405");
+
+    store.selectComisionMateria("1", "1K2-A");
+    assert.equal(store.state.cursosEditados["1"], undefined);
+
+    store.saveCursoEditado("1", [{ dia: "Miércoles", inicio: "08:00", fin: "10:00", aula: "Lab 2" }]);
+    assert.ok(store.state.cursosEditados["1"]);
+    store.clearPlan();
+    assert.deepEqual(JSON.parse(JSON.stringify(store.state.cursosEditados)), {});
+  });
 });
 
 describe("HeaderStats — estadísticas y barras de progreso", () => {
@@ -187,5 +263,99 @@ describe("SyncModal — sanitización XSS", () => {
     const ipsHtml = dom.elements["sync-ips-hint"].innerHTML;
     assert.ok(!ipsHtml.includes("<img"), "No debe inyectar etiquetas HTML crudas");
     assert.ok(ipsHtml.includes("&lt;img"), "Debe escapar caracteres HTML");
+  });
+});
+
+describe("EditCourseModal y UtnCalendar — aulas por día y sanitización XSS", () => {
+  it("renderiza aulas distintas por día en UtnCalendar y escapa HTML en aula", () => {
+    const dom = makeDomMock([
+      "utn-cal-body",
+      "enrolled-summary-pill",
+      "btn-clear-plan",
+      "btn-edit-courses",
+      "btn-export-schedule",
+      "conflict-alert-banner"
+    ]);
+    const { sandbox } = createBrowserSandbox({ document: dom.document });
+    sandbox.HORARIOS_MATERIAS = {
+      "1": [
+        {
+          id: "1K1-A",
+          comision: "1K1",
+          periodo: "Anual",
+          bloques: [
+            { dia: "Lunes", inicio: "08:00", fin: "10:00" },
+            { dia: "Martes", inicio: "08:00", fin: "10:00" }
+          ]
+        }
+      ]
+    };
+    sandbox.App = { renderAll: () => {} };
+    loadAppScript(sandbox, "app/src/data/materias.js");
+    loadAppScript(sandbox, "app/src/state/store.js");
+    loadAppScript(sandbox, "app/src/utils/schedule.js");
+    loadAppScript(sandbox, "app/src/components/UtnCalendar.js");
+
+    sandbox.App.store.selectComisionMateria("1", "1K1-A");
+    sandbox.App.store.saveCursoEditado("1", [
+      { dia: "Lunes", inicio: "08:00", fin: "10:00", aula: "200" },
+      { dia: "Martes", inicio: "08:00", fin: "10:00", aula: '<script>alert(1)</script>' }
+    ]);
+
+    sandbox.App.components.UtnCalendar.render();
+    const calHtml = dom.elements["utn-cal-body"].innerHTML;
+    assert.ok(calHtml.includes("Aula 200"));
+    assert.ok(!calHtml.includes("<script>alert(1)</script>"));
+    assert.ok(calHtml.includes("&lt;script&gt;alert(1)&lt;/script&gt;"));
+    assert.equal(dom.elements["btn-edit-courses"].disabled, false);
+  });
+
+  it("abre EditCourseModal, permite guardar cambios y restaurar original", () => {
+    const dom = makeDomMock([
+      "edit-course-modal",
+      "edit-course-filter",
+      "edit-course-error",
+      "edit-course-list",
+      "btn-close-edit-course",
+      "btn-cancel-edit-course",
+      "btn-save-edit-course"
+    ]);
+    const { sandbox } = createBrowserSandbox({ document: dom.document });
+    sandbox.HORARIOS_MATERIAS = {
+      "1": [
+        {
+          id: "1K1-A",
+          comision: "1K1",
+          periodo: "Anual",
+          bloques: [
+            { dia: "Lunes", inicio: "08:00", fin: "10:00" },
+            { dia: "Martes", inicio: "10:00", fin: "12:00" }
+          ]
+        }
+      ]
+    };
+    sandbox.App = { renderAll: () => {} };
+    loadAppScript(sandbox, "app/src/data/materias.js");
+    loadAppScript(sandbox, "app/src/state/store.js");
+    loadAppScript(sandbox, "app/src/utils/schedule.js");
+    loadAppScript(sandbox, "app/src/components/EditCourseModal.js");
+
+    sandbox.App.store.selectComisionMateria("1", "1K1-A");
+    sandbox.App.store.saveCursoEditado("1", [
+      { dia: "Lunes", inicio: "08:00", fin: "10:00", aula: "200" },
+      { dia: "Martes", inicio: "10:00", fin: "12:00", aula: "300" }
+    ]);
+
+    sandbox.App.components.EditCourseModal.bindEvents();
+    sandbox.App.components.EditCourseModal.open("1");
+
+    assert.equal(sandbox.App.components.EditCourseModal.isOpen(), true);
+    const listHtml = dom.elements["edit-course-list"].innerHTML;
+    assert.ok(listHtml.includes('value="200"'));
+    assert.ok(listHtml.includes('value="300"'));
+    assert.ok(listHtml.includes("Editado"));
+
+    dom.elements["btn-save-edit-course"].dispatch("click");
+    assert.equal(sandbox.App.components.EditCourseModal.isOpen(), false);
   });
 });

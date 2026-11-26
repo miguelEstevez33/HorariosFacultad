@@ -5,6 +5,15 @@
 
   let lastHoveredChipOptionId = null;
 
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   function togglePreviewMateria(materiaId) {
     App.store.toggleActivePreviewMateria(materiaId);
     render();
@@ -83,7 +92,14 @@
       <div class="picker-preview-panel">
         <div class="picker-preview-hint">
           <span>Mostrando <strong>${displayedOpts.length}</strong> comisiones en la grilla (clic para plantar):</span>
-          ${selectedId ? `<button type="button" class="btn-unplant-inline" data-unplant-id="${m.id}">Quitar ${selectedObj ? selectedObj.comision : ""}</button>` : ""}
+          ${
+            selectedId
+              ? `<div class="picker-preview-actions">
+                   <button type="button" class="btn-edit-picker" data-edit-course-id="${m.id}">Editar</button>
+                   <button type="button" class="btn-unplant-inline" data-unplant-id="${m.id}">Quitar ${selectedObj ? escapeHtml(selectedObj.comision) : ""}</button>
+                 </div>`
+              : ""
+          }
         </div>
         <div class="comisiones-chips-grid">
           ${pills}
@@ -98,12 +114,16 @@
       return renderLockedItem(m, ev);
     }
 
-    const { state, getOpcionesComision } = App.store;
+    const { state, getOpcionesComision, getEffectiveComision } = App.store;
     const { formatBloquesResumen } = App.schedule;
 
     const opciones = getOpcionesComision(m.id);
     const selectedId = state.cursosSeleccionados[m.id] || "";
-    const selectedObj = selectedId ? opciones.find(o => o.id === selectedId) : null;
+    const selectedObj = selectedId
+      ? (typeof getEffectiveComision === "function"
+          ? getEffectiveComision(m.id, selectedId)
+          : null) || opciones.find(o => o.id === selectedId)
+      : null;
     const isPreviewActive = state.activePreviewMateriaId === m.id;
     const comisionesPillsHtml = isPreviewActive
       ? renderComisionesPanel(m, opciones, selectedId, selectedObj, enrolledBlocks)
@@ -111,16 +131,21 @@
 
     return `
       <div class="picker-item ${selectedId ? "enrolled" : ""} ${isPreviewActive ? "previewing" : ""}">
-        <div class="picker-radio-row" data-toggle-materia="${m.id}" title="Clic para mostrar/ocultar dónde se plantan las comisiones de ${m.nombre} en la grilla">
+        <div class="picker-radio-row" data-toggle-materia="${m.id}" title="Clic para mostrar/ocultar dónde se plantan las comisiones de ${escapeHtml(m.nombre)} en la grilla">
           <div class="picker-subject-info">
             <div class="picker-title-line">
-              <span class="picker-item-title">${m.nombre}</span>
-              ${selectedObj ? `<span class="planted-badge">${selectedObj.comision}</span>` : ""}
+              <span class="picker-item-title">${escapeHtml(m.nombre)}</span>
+              ${selectedObj ? `<span class="planted-badge">${escapeHtml(selectedObj.comision)}</span>` : ""}
+              ${
+                selectedObj
+                  ? `<button type="button" class="btn-edit-picker" data-edit-course-id="${m.id}" title="Editar aulas y horarios de ${escapeHtml(m.nombre)}">Editar</button>`
+                  : ""
+              }
             </div>
             <div class="picker-submeta">
               <span>${m.nivel}° Año • ${m.carga} hs</span>
               ${m.electiva ? `<span class="meta-tag tag-electiva">Electiva</span>` : ""}
-              ${selectedObj ? `<span class="planted-schedule-text">(${formatBloquesResumen(selectedObj.bloques)})</span>` : ""}
+              ${selectedObj ? `<span class="planted-schedule-text">(${escapeHtml(formatBloquesResumen(selectedObj.bloques))})</span>` : ""}
             </div>
           </div>
 
@@ -191,6 +216,15 @@
         const optId = chip.getAttribute("data-option-id");
         const isSame = App.store.state.cursosSeleccionados[mId] === optId;
         App.store.selectComisionMateria(mId, isSame ? "" : optId);
+        return;
+      }
+
+      const editBtn = e.target.closest("[data-edit-course-id]");
+      if (editBtn) {
+        e.stopPropagation();
+        if (App.components.EditCourseModal) {
+          App.components.EditCourseModal.open(editBtn.getAttribute("data-edit-course-id"));
+        }
         return;
       }
 

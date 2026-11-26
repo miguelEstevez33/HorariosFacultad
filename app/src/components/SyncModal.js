@@ -158,6 +158,7 @@
       await App.syncClient.pushState(baseUrl, {
         estadosAlumno: state.estadosAlumno,
         cursosSeleccionados: state.cursosSeleccionados,
+        cursosEditados: state.cursosEditados,
         ordenCursosSeleccionados: state.ordenCursosSeleccionados,
         source
       });
