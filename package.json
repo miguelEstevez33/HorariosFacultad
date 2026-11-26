@@ -14,7 +14,10 @@
     "build:exe": "electron-builder --win",
     "cap:sync": "npx cap sync android",
     "android:open": "npm run cap:sync && npx cap open android",
-    "android:apk": "npm run cap:sync && cd android && gradlew.bat assembleDebug"
+    "android:apk": "npm run cap:sync && cd android && gradlew.bat assembleDebug",
+    "ios:sync": "npx cap sync ios",
+    "ios:open": "npm run ios:sync && npx cap open ios",
+    "ios:run": "npx cap run ios"
   },
   "build": {
     "appId": "com.utnfrc.horarios.isi",
@@ -54,7 +57,10 @@
   },
   "dependencies": {
     "@capacitor/android": "^6.2.0",
-    "@capacitor/core": "^6.2.0"
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/filesystem": "^6.0.4",
+    "@capacitor/ios": "^6.2.4",
+    "@capacitor/share": "^6.0.4"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.2.0",
