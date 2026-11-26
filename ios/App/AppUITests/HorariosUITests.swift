@@ -37,10 +37,13 @@ final class HorariosUITests: XCTestCase {
         XCTAssertTrue(input.waitForExistence(timeout: 20))
         input.tap()
         input.typeText(query)
+        XCTAssertEqual(input.value as? String, query, "El buscador no recibió el texto esperado")
+        let subject = app.webViews.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] %@", "Geometr")).firstMatch
+        XCTAssertTrue(subject.waitForExistence(timeout: 20), "La materia no apareció tras filtrar por \(query). Jerarquía: \(app.webViews.firstMatch.debugDescription)")
     }
 
     private func tapVisible(_ element: XCUIElement, in app: XCUIApplication) {
-        XCTAssertTrue(element.waitForExistence(timeout: 20), "No se encontró el control")
+        XCTAssertTrue(element.waitForExistence(timeout: 20), "No se encontró el control: \(element). Jerarquía: \(app.webViews.firstMatch.debugDescription)")
         for _ in 0..<8 {
             if element.isHittable { break }
             app.webViews.firstMatch.swipeUp()
@@ -68,17 +71,17 @@ final class HorariosUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         openTab(app, "Alumno")
-        search(app, "Buscar materia", "Álgebra")
-        let none = app.webViews.buttons.matching(NSPredicate(format: "label == %@", "Sin cursar")).firstMatch
+        search(app, "Buscar materia", "Geometr")
+        let none = app.webViews.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Sin cursar")).firstMatch
         tapVisible(none, in: app)
         let baseline = try approvedCount(app)
-        let approved = app.webViews.buttons.matching(NSPredicate(format: "label == %@", "Aprobado")).firstMatch
+        let approved = app.webViews.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Aprobado")).firstMatch
         tapVisible(approved, in: app)
         expectProgress(app, baseline + 1)
         app.terminate()
         app.launch()
         expectProgress(app, baseline + 1)
-        search(app, "Buscar materia", "Álgebra")
+        search(app, "Buscar materia", "Geometr")
         tapVisible(none, in: app)
         expectProgress(app, baseline)
     }
@@ -87,14 +90,14 @@ final class HorariosUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
         openTab(app, "Alumno")
-        search(app, "Buscar materia", "Álgebra")
-        tapVisible(app.webViews.buttons.matching(NSPredicate(format: "label == %@", "Sin cursar")).firstMatch, in: app)
+        search(app, "Buscar materia", "Geometr")
+        tapVisible(app.webViews.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Sin cursar")).firstMatch, in: app)
         // Reiniciar la vista para eliminar el filtro y volver al inicio.
         app.terminate()
         app.launch()
         openTab(app, "Cursado")
-        search(app, "Filtrar materia", "Álgebra")
-        let subject = app.webViews.buttons.matching(NSPredicate(format: "label BEGINSWITH[c] %@", "Seleccionar Álgebra")).firstMatch
+        search(app, "Filtrar materia", "Geometr")
+        let subject = app.webViews.buttons.matching(NSPredicate(format: "label BEGINSWITH[c] %@ AND label CONTAINS[c] %@", "Seleccionar", "Geometr")).firstMatch
         tapVisible(subject, in: app)
         let remove = app.webViews.buttons.matching(NSPredicate(format: "label BEGINSWITH[c] %@", "Quitar ")).firstMatch
         if remove.exists { tapVisible(remove, in: app) }
