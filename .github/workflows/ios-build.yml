@@ -10,6 +10,7 @@ on:
 jobs:
   build-ios:
     runs-on: macos-15
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
@@ -53,3 +54,47 @@ jobs:
         with:
           name: HorariosFacultad-iOS
           path: ios-build/Build/Products/Debug-iphonesimulator/*.app
+
+      - name: Start iPhone simulator
+        timeout-minutes: 10
+        run: |
+          xcrun simctl list devices available
+
+          UDID=$(xcrun simctl list devices available -j | jq -r '[.devices[][] | select(.name == "iPhone 16 Pro")][0].udid // empty')
+
+          if [ -z "$UDID" ]; then
+            echo "iPhone 16 Pro simulator not found"
+            exit 1
+          fi
+
+          echo "SIMULATOR_UDID=$UDID" >> "$GITHUB_ENV"
+
+          xcrun simctl bootstatus "$UDID" -b
+
+      - name: Install and launch application
+        run: |
+          xcrun simctl install "$SIMULATOR_UDID" \
+            ios-build/Build/Products/Debug-iphonesimulator/App.app
+
+          xcrun simctl status_bar "$SIMULATOR_UDID" override \
+            --time "9:41" \
+            --batteryState unplugged \
+            --batteryLevel 100
+
+          xcrun simctl launch "$SIMULATOR_UDID" \
+            com.utnfrc.horariosisi
+
+          sleep 15
+
+      - name: Capture iPhone screenshot
+        run: |
+          mkdir -p screenshots
+
+          xcrun simctl io "$SIMULATOR_UDID" screenshot \
+            screenshots/horarios-iphone.png
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: HorariosFacultad-iOS-Screenshots
+          path: screenshots/
